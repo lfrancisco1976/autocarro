@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bus Tracker - Imagens</title>
+    <title>Bus Tracker - Filtro por Destino</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #eee; }
@@ -22,12 +22,10 @@
         .c-1015 { border-left: 5px solid #0055b8; }
         .c-1510 { border-left: 5px solid #e30613; }
         
-        /* Nome da linha clicável */
         .line-info h1 { 
             margin: 0; font-size: 11px; text-transform: uppercase; font-weight: bold; 
-            cursor: pointer; padding: 5px; border-radius: 4px; transition: background 0.2s;
+            cursor: pointer; padding: 5px; border-radius: 4px;
         }
-        .line-info h1:hover { background: #f0f0f0; }
 
         .status-badge { background: #4CAF50; color: white; padding: 2px 6px; border-radius: 8px; font-size: 10px; }
         .bus-container { display: flex; flex-direction: column; align-items: center; }
@@ -37,7 +35,7 @@
             margin-bottom: -2px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
 
-        /* Estilos do Modal Pop-up */
+        /* Modal Pop-up */
         .modal {
             display: none; position: fixed; z-index: 2000; left: 0; top: 0;
             width: 100%; height: 100%; background-color: rgba(0,0,0,0.8);
@@ -47,11 +45,11 @@
             position: relative; max-width: 90%; max-height: 80%;
             background: white; padding: 10px; border-radius: 8px;
         }
-        .modal-content img { width: 100%; height: auto; border-radius: 4px; }
+        .modal-content img { width: 100%; height: auto; border-radius: 4px; display: block; }
         .close-btn {
             position: absolute; top: -15px; right: -15px; background: #e30613;
             color: white; border: none; border-radius: 50%; width: 30px; height: 30px;
-            cursor: pointer; font-weight: bold; font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+            cursor: pointer; font-weight: bold;
         }
     </style>
 </head>
@@ -72,11 +70,10 @@
     </div>
 </div>
 
-<!-- Modal para as Imagens -->
 <div id="imgModal" class="modal" onclick="closeModal()">
     <div class="modal-content" onclick="event.stopPropagation()">
         <button class="close-btn" onclick="closeModal()">×</button>
-        <img id="modalImg" src="" alt="Horário/Linha">
+        <img id="modalImg" src="" alt="Linha">
     </div>
 </div>
 
@@ -85,11 +82,10 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // Funções do Modal
     function openModal(lineId) {
         const modal = document.getElementById('imgModal');
         const img = document.getElementById('modalImg');
-        img.src = lineId + '.jpg'; // Procura por 1013.jpg, 1015.jpg, etc.
+        img.src = lineId + '.jpg';
         modal.style.display = 'flex';
     }
 
@@ -97,7 +93,6 @@
         document.getElementById('imgModal').style.display = 'none';
     }
 
-    // Configuração do Mapa
     const map = L.map('map', { zoomControl: false }).setView([38.7490, -9.2150], 14);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
@@ -111,19 +106,19 @@
 
     const markers = {};
     
-    function getBusIcon(line) {
-        let color = '#333', label = line;
-        if (line === '1013') { color = '#27ae60'; label = '➔ Queijas'; }
-        if (line === '1015') { color = '#0055b8'; label = 'Circular'; }
-        if (line === '1510') { color = '#e30613'; label = '➔ Damaia'; }
+    function getBusIcon(line, headsign) {
+        let color = '#333';
+        if (line === '1013') color = '#27ae60';
+        if (line === '1015') color = '#0055b8';
+        if (line === '1510') color = '#e30613';
 
         return L.divIcon({
             className: 'b-ico',
             html: `<div class="bus-container">
-                    <div class="bus-tag">${label}</div>
+                    <div class="bus-tag">➔ ${headsign}</div>
                     <div style="background:${color}; width:22px; height:22px; border-radius:50%; border:2px solid white; color:white; display:flex; justify-content:center; align-items:center; font-size:9px; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${line.slice(-2)}</div>
                    </div>`,
-            iconSize: [80, 45], iconAnchor: [40, 35]
+            iconSize: [100, 45], iconAnchor: [50, 35]
         });
     }
 
@@ -135,17 +130,21 @@
             let c1013 = 0, c1015 = 0, c1510 = 0;
 
             data.forEach(v => {
-                const is1013 = (v.line_id === '1013' && v.direction_id === 0);
-                const is1510 = (v.line_id === '1510' && v.direction_id === 0);
+                const headsign = v.headsign ? v.headsign.toLowerCase() : "";
+                
+                // FILTRO ROBUSTO: Linha + Verificação de Destino no texto
+                const is1013 = (v.line_id === '1013' && headsign.includes("queijas"));
+                const is1510 = (v.line_id === '1510' && headsign.includes("damaia"));
                 const is1015 = (v.line_id === '1015');
 
                 if (is1013 || is1510 || is1015) {
                     nowIds.add(v.id);
+                    
                     if (v.line_id === '1013') c1013++;
                     else if (v.line_id === '1015') c1015++;
                     else if (v.line_id === '1510') c1510++;
 
-                    const ico = getBusIcon(v.line_id);
+                    const ico = getBusIcon(v.line_id, v.headsign || "---");
                     if (markers[v.id]) {
                         markers[v.id].setLatLng([v.lat, v.lon]).setIcon(ico);
                     } else {
