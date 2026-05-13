@@ -3,50 +3,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Monitor CM - 1015 & 1510</title>
+    <title>Bus Tracker - 1015 & 1510</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; overflow: hidden; }
-        #map { height: 100vh; width: 100vw; background: #f8f9fa; }
+        body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #eee; }
+        #map { height: 100vh; width: 100vw; }
 
-        /* Cartões Pequenos e Compactos */
+        /* UI Compacta */
         .ui-overlay {
             position: absolute; top: 8px; left: 8px; right: 8px;
-            z-index: 1000; display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+            z-index: 1000; display: flex; flex-direction: column; gap: 4px; pointer-events: none;
         }
         .line-card {
-            background: white; padding: 8px 12px; border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; 
-            justify-content: space-between; align-items: center; 
-            pointer-events: auto; border-left: 4px solid #ffce00;
+            background: white; padding: 6px 10px; border-radius: 6px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2); display: flex; 
+            justify-content: space-between; align-items: center; pointer-events: auto;
         }
-        .line-1015 { border-color: #0055b8; }
-        .line-1510 { border-color: #e30613; }
+        .c-1015 { border-left: 4px solid #0055b8; }
+        .c-1510-A { border-left: 4px solid #e30613; }
+        .c-1510-D { border-left: 4px solid #f39c12; }
         
-        .line-info h1 { margin: 0; font-size: 13px; font-weight: bold; }
-        .line-info p { margin: 0; font-size: 10px; color: #666; }
-        .status-badge { background: #4CAF50; color: white; padding: 2px 6px; border-radius: 10px; font-size: 9px; font-weight: bold; }
+        .line-info h1 { margin: 0; font-size: 11px; text-transform: uppercase; }
+        .status-badge { background: #4CAF50; color: white; padding: 2px 6px; border-radius: 8px; font-size: 9px; }
 
-        /* Ajuste do Marcador do Autocarro */
-        .bus-marker-container { display: flex; flex-direction: column; align-items: center; }
-        .bus-label {
-            background: white; color: black; font-size: 9px; font-weight: bold;
-            padding: 1px 4px; border-radius: 3px; border: 1px solid #999;
-            margin-bottom: -2px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        /* Marcadores dos Autocarros */
+        .bus-container { display: flex; flex-direction: column; align-items: center; }
+        .bus-tag { 
+            background: white; color: black; font-size: 8px; font-weight: bold; 
+            padding: 1px 3px; border: 1px solid #666; border-radius: 3px; margin-bottom: -2px;
         }
     </style>
 </head>
 <body>
 
 <div class="ui-overlay">
-    <div class="line-card line-1015">
-        <div class="line-info"><h1>1015 - Reboleira</h1><p>Circular via Damaia</p></div>
-        <div id="status-1015" class="status-badge">...</div>
+    <div class="line-card c-1015">
+        <div class="line-info"><h1>1015 Circular</h1></div>
+        <div id="status-1015" class="status-badge">0</div>
     </div>
-    <div class="line-card line-1510">
-        <div class="line-info"><h1>1510 - Amadora / Damaia</h1><p>Hospital - Pavilhão</p></div>
-        <div id="status-1510" class="status-badge">...</div>
+    <div class="line-card c-1510-A">
+        <div class="line-info"><h1>1510 Amadora</h1></div>
+        <div id="status-1510A" class="status-badge">0</div>
+    </div>
+    <div class="line-card c-1510-D">
+        <div class="line-info"><h1>1510 Damaia</h1></div>
+        <div id="status-1510D" class="status-badge">0</div>
     </div>
 </div>
 
@@ -59,58 +61,54 @@
     const map = L.map('map', { zoomControl: false }).setView([38.7490, -9.2150], 15);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // --- PONTOS FIXOS ---
-    const locais = [
-        { n: "🏠 Casa", c: [38.746972, -9.228528], cl: "#2ecc71" },
-        { n: "🏫 Escola", c: [38.748177, -9.192485], cl: "#9b59b6" },
-        { n: "📍 Reboleira", c: [38.750335, -9.221748], cl: "#e67e22" }
+    // 1. PONTOS FIXOS
+    const pts = [
+        { n: "🏠 Casa", c: [38.746972, -9.228528], cl: "#27ae60" },
+        { n: "🏫 Escola", c: [38.748177, -9.192485], cl: "#8e44ad" },
+        { n: "📍 Reboleira", c: [38.750335, -9.221748], cl: "#d35400" }
     ];
-    locais.forEach(l => {
-        L.marker(l.c, {
-            icon: L.divIcon({
-                html: `<div style="background:${l.cl}; color:white; padding:3px 6px; border-radius:4px; font-weight:bold; font-size:10px; border:1px solid white;">${l.n}</div>`,
-                iconSize: [60, 20]
-            })
-        }).addTo(map);
+    pts.forEach(p => {
+        L.marker(p.c, { icon: L.divIcon({ html: `<div style="background:${p.cl}; color:white; padding:2px 5px; border-radius:3px; font-size:10px; border:1px solid white;">${p.n}</div>`, iconSize: [60, 20] }) }).addTo(map);
     });
 
-    // --- TRAJETOS COM SETAS ---
-    async function loadShapes() {
-        const lines = {
-            '1015': { color: '#0055b8', pattern: '1015_0_1' }, 
-            '1510': { color: '#e30613', pattern: '1510_0_1' }
-        };
-
-        for (let id in lines) {
+    // 2. DESENHAR TRAJETOS DINÂMICOS
+    async function drawRoutes() {
+        const lines = ['1015', '1510'];
+        for (let lId of lines) {
             try {
-                const res = await fetch(`https://api.carrismetropolitana.pt/patterns/${lines[id].pattern}`);
-                const data = await res.json();
-                const coords = data.path.map(p => [p.latitude, p.longitude]);
-                
-                const poly = L.polyline(coords, { color: lines[id].color, weight: 3, opacity: 0.5 }).addTo(map);
-                
-                L.polylineDecorator(poly, {
-                    patterns: [{
-                        offset: 40, repeat: 120,
-                        symbol: L.Symbol.arrowHead({ pixelSize: 9, pathOptions: { fillOpacity: 1, color: lines[id].color, stroke: false }})
-                    }]
-                }).addTo(map);
-            } catch (e) { console.error("Erro no trajeto " + id); }
+                const lRes = await fetch(`https://api.carrismetropolitana.pt/lines/${lId}`);
+                const lData = await lRes.json();
+                // Pegar o primeiro pattern de cada sentido
+                for (let i = 0; i < Math.min(lData.patterns.length, 2); i++) {
+                    const pRes = await fetch(`https://api.carrismetropolitana.pt/patterns/${lData.patterns[i]}`);
+                    const pData = await pRes.json();
+                    const coords = pData.path.map(pt => [pt.latitude, pt.longitude]);
+                    const color = lId === '1015' ? '#0055b8' : (i === 0 ? '#e30613' : '#f39c12');
+                    
+                    const poly = L.polyline(coords, { color: color, weight: 3, opacity: 0.4 }).addTo(map);
+                    L.polylineDecorator(poly, {
+                        patterns: [{ offset: 50, repeat: 120, symbol: L.Symbol.arrowHead({ pixelSize: 8, pathOptions: { color: color, fillOpacity: 1, stroke: false } }) }]
+                    }).addTo(map);
+                }
+            } catch (e) { console.log("Erro na rota " + lId); }
         }
     }
 
-    // --- VEÍCULOS ---
+    // 3. AUTOCARROS E SENTIDOS
     const markers = {};
-    function getBusIcon(line, dir) {
-        const color = line === '1015' ? '#0055b8' : '#e30613';
-        const label = line === '1510' ? (dir === 0 ? "➔ Damaia" : "➔ Amadora") : "Circular";
+    function getIco(line, dir) {
+        let color = '#0055b8', label = 'Circular';
+        if (line === '1510') {
+            color = dir === 0 ? '#e30613' : '#f39c12';
+            label = dir === 0 ? '➔ Amadora' : '➔ Damaia';
+        }
         return L.divIcon({
-            className: 'bus-ico',
-            html: `<div class="bus-marker-container">
-                    <div class="bus-label">${label}</div>
-                    <div style="background:${color}; color:white; border-radius:50%; border:2px solid white; width:22px; height:22px; display:flex; justify-content:center; align-items:center; font-weight:bold; font-size:8px;">${line}</div>
+            className: 'b-ico',
+            html: `<div class="bus-container">
+                    <div class="bus-tag">${label}</div>
+                    <div style="background:${color}; width:20px; height:20px; border-radius:50%; border:2px solid white; color:white; display:flex; justify-content:center; align-items:center; font-size:8px; font-weight:bold;">${line.slice(-2)}</div>
                    </div>`,
-            iconSize: [60, 40], iconAnchor: [30, 35]
+            iconSize: [60, 40], iconAnchor: [30, 30]
         });
     }
 
@@ -118,30 +116,30 @@
         try {
             const res = await fetch('https://api.carrismetropolitana.pt/vehicles');
             const data = await res.json();
-            const active = new Set();
-            let c1015 = 0, c1510 = 0;
+            const nowIds = new Set();
+            let c1015 = 0, c1510A = 0, c1510D = 0;
 
-            data.filter(v => ['1015', '1510'].includes(v.line_id)).forEach(bus => {
-                active.add(bus.id);
-                if(bus.line_id === '1015') c1015++; else c1510++;
-                
-                const pos = [bus.lat, bus.lon];
-                const icon = getBusIcon(bus.line_id, bus.direction_id);
+            data.filter(v => ['1015', '1510'].includes(v.line_id)).forEach(v => {
+                nowIds.add(v.id);
+                if (v.line_id === '1015') c1015++;
+                else v.direction_id === 0 ? c1510A++ : c1510D++;
 
-                if (markers[bus.id]) {
-                    markers[bus.id].setLatLng(pos).setIcon(icon);
+                const ico = getIco(v.line_id, v.direction_id);
+                if (markers[v.id]) {
+                    markers[v.id].setLatLng([v.lat, v.lon]).setIcon(ico);
                 } else {
-                    markers[bus.id] = L.marker(pos, { icon }).addTo(map).bindPopup(`Viatura: ${bus.id}`);
+                    markers[v.id] = L.marker([v.lat, v.lon], { icon: ico }).addTo(map).bindPopup(`Viatura: ${v.id}<br>Linha: ${v.line_id}`);
                 }
             });
 
-            Object.keys(markers).forEach(id => { if(!active.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }});
-            document.getElementById('status-1015').innerText = `${c1015} na rua`;
-            document.getElementById('status-1510').innerText = `${c1510} na rua`;
+            Object.keys(markers).forEach(id => { if(!nowIds.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }});
+            document.getElementById('status-1015').innerText = c1015;
+            document.getElementById('status-1510A').innerText = c1510A;
+            document.getElementById('status-1510D').innerText = c1510D;
         } catch (e) {}
     }
 
-    loadShapes();
+    drawRoutes();
     update();
     setInterval(update, 10000);
 </script>
