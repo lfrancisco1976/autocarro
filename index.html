@@ -3,13 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bus Tracker Pro - 1013, 1015, 1510</title>
-    
+    <title>Bus Tracker - Filtro de Sentidos</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #eee; }
         #map { height: 100vh; width: 100vw; }
-
         .ui-overlay {
             position: absolute; top: 8px; left: 8px; right: 8px;
             z-index: 1000; display: flex; flex-direction: column; gap: 4px; pointer-events: none;
@@ -22,10 +20,8 @@
         .c-1013 { border-left: 5px solid #27ae60; }
         .c-1015 { border-left: 5px solid #0055b8; }
         .c-1510 { border-left: 5px solid #e30613; }
-        
         .line-info h1 { margin: 0; font-size: 11px; text-transform: uppercase; font-weight: bold; }
         .status-badge { background: #4CAF50; color: white; padding: 2px 6px; border-radius: 8px; font-size: 10px; }
-
         .bus-container { display: flex; flex-direction: column; align-items: center; }
         .bus-tag { 
             background: white; color: black; font-size: 8px; font-weight: bold; 
@@ -38,7 +34,7 @@
 
 <div class="ui-overlay">
     <div class="line-card c-1013">
-        <div class="line-info"><h1>1013 Reboleira / Queijas</h1></div>
+        <div class="line-info"><h1>1013 Reboleira ➔ Queijas</h1></div>
         <div id="status-1013" class="status-badge">0</div>
     </div>
     <div class="line-card c-1015">
@@ -46,7 +42,7 @@
         <div id="status-1015" class="status-badge">0</div>
     </div>
     <div class="line-card c-1510">
-        <div class="line-info"><h1>1510 Amadora / Damaia</h1></div>
+        <div class="line-info"><h1>1510 Amadora ➔ Damaia</h1></div>
         <div id="status-1510" class="status-badge">0</div>
     </div>
 </div>
@@ -54,67 +50,22 @@
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-polylinedecorator/1.6.0/leaflet.polylineDecorator.js"></script>
 
 <script>
-    // Inicialização do mapa centrada na zona de operação
     const map = L.map('map', { zoomControl: false }).setView([38.7490, -9.2150], 14);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // 1. PONTOS FIXOS DE INTERESSE
     const pts = [
         { n: "🏠 Casa", c: [38.746972, -9.228528], cl: "#2c3e50" },
-        { n: "🏫 Escola", c: [38.748177, -9.192485], cl: "#8e44ad" },
         { n: "📍 Reboleira", c: [38.750335, -9.221748], cl: "#d35400" }
     ];
     pts.forEach(p => {
         L.marker(p.c, { icon: L.divIcon({ html: `<div style="background:${p.cl}; color:white; padding:2px 6px; border-radius:3px; font-size:10px; border:1px solid white; white-space:nowrap;">${p.n}</div>`, iconSize: [60, 20] }) }).addTo(map);
     });
 
-    // 2. DESENHAR TRAJETOS DINÂMICOS (Patterns)
-    async function drawRoutes() {
-        const routeConfigs = {
-            '1013': { color: '#27ae60', name: '1013' },
-            '1015': { color: '#0055b8', name: '1015' },
-            '1510': { color: '#e30613', name: '1510' }
-        };
-
-        for (let lId in routeConfigs) {
-            try {
-                const lRes = await fetch(`https://api.carrismetropolitana.pt/lines/${lId}`);
-                const lData = await lRes.json();
-                
-                // Para a 1510, queremos apenas o sentido Amadora -> Damaia
-                // Normalmente o pattern 0 é o sentido de ida principal
-                const patternsToDraw = (lId === '1510') ? [lData.patterns[0]] : lData.patterns;
-
-                for (let pId of patternsToDraw) {
-                    const pRes = await fetch(`https://api.carrismetropolitana.pt/patterns/${pId}`);
-                    const pData = await pRes.json();
-                    
-                    // Apenas desenha se for o sentido pretendido (Segurança extra para a 1510)
-                    if (lId === '1510' && pData.direction !== 0) continue;
-
-                    const coords = pData.path.map(pt => [pt.latitude, pt.longitude]);
-                    const color = routeConfigs[lId].color;
-
-                    const poly = L.polyline(coords, { color: color, weight: 4, opacity: 0.4 }).addTo(map);
-                    
-                    L.polylineDecorator(poly, {
-                        patterns: [{ 
-                            offset: 50, repeat: 120, 
-                            symbol: L.Symbol.arrowHead({ pixelSize: 10, pathOptions: { color: color, fillOpacity: 1, stroke: false } }) 
-                        }]
-                    }).addTo(map);
-                }
-            } catch (e) { console.error("Erro ao carregar linha " + lId, e); }
-        }
-    }
-
-    // 3. GESTÃO DOS AUTOCARROS
     const markers = {};
     
-    function getBusIcon(line, dir) {
+    function getBusIcon(line) {
         let color = '#333', label = line;
         if (line === '1013') { color = '#27ae60'; label = '➔ Queijas'; }
         if (line === '1015') { color = '#0055b8'; label = 'Circular'; }
@@ -139,19 +90,19 @@
             let c1013 = 0, c1015 = 0, c1510 = 0;
 
             data.forEach(v => {
-                // Filtros: Linhas certas + Sentido específico para a 1510
-                const isTargetLine = ['1013', '1015', '1510'].includes(v.line_id);
-                const isCorrect1510 = (v.line_id === '1510' && v.direction_id === 0);
-                const isOtherLine = (v.line_id === '1013' || v.line_id === '1015');
+                // FILTROS DE SENTIDO (Direction 0 é ida, 1 é volta - ajustado conforme o pedido)
+                const is1013 = (v.line_id === '1013' && v.direction_id === 0); // Reboleira -> Queijas
+                const is1510 = (v.line_id === '1510' && v.direction_id === 0); // Amadora -> Damaia
+                const is1015 = (v.line_id === '1015');                         // Circular
 
-                if (isTargetLine && (isOtherLine || isCorrect1510)) {
+                if (is1013 || is1510 || is1015) {
                     nowIds.add(v.id);
                     
                     if (v.line_id === '1013') c1013++;
                     else if (v.line_id === '1015') c1015++;
                     else if (v.line_id === '1510') c1510++;
 
-                    const ico = getBusIcon(v.line_id, v.direction_id);
+                    const ico = getBusIcon(v.line_id);
                     if (markers[v.id]) {
                         markers[v.id].setLatLng([v.lat, v.lon]).setIcon(ico);
                     } else {
@@ -160,12 +111,11 @@
                 }
             });
 
-            // Limpeza de veículos que saíram de rota
+            // Remover autocarros que mudaram de linha ou sentido
             Object.keys(markers).forEach(id => { 
                 if(!nowIds.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }
             });
 
-            // Atualização da UI
             document.getElementById('status-1013').innerText = c1013;
             document.getElementById('status-1015').innerText = c1015;
             document.getElementById('status-1510').innerText = c1510;
@@ -173,12 +123,9 @@
         } catch (e) { console.error("Erro na atualização", e); }
     }
 
-    // Início
-    drawRoutes();
     update();
     setInterval(update, 10000);
 
-    // Minha Localização
     map.locate({setView: false, watch: true});
     map.on('locationfound', (e) => {
         if (!window.userM) window.userM = L.circleMarker(e.latlng, {radius: 7, color: '#3498db', fillColor: 'white', fillOpacity: 1, weight: 3}).addTo(map);
