@@ -140,10 +140,10 @@
 
             // 2. Processar JDCP (Lógica aninhada conforme confirmado)
             resJDCP.forEach(v => {
-                const vId = v.id || "";
-                const vehicleObj = v.vehicle || {};
-                const trip = vehicleObj.trip || {};
-                const pos = vehicleObj.position || {};
+                const Id = v.id || "";
+                const vehicle = v.vehicle || {};
+                const directionId = vehicleObj.trip || {};
+                const position = vehicleObj.position || {};
                 const subVehicle = vehicleObj.vehicle || {};
 
                 // Filtro: ID contém 767 E direção é 0
