@@ -3,35 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Monitor CM - Fixo & Direcional</title>
+    <title>Bus Tracker - 1015 & 1510</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #f4f4f4; }
+        body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #eee; }
         #map { height: 100vh; width: 100vw; }
 
+        /* UI Compacta */
         .ui-overlay {
             position: absolute; top: 8px; left: 8px; right: 8px;
             z-index: 1000; display: flex; flex-direction: column; gap: 4px; pointer-events: none;
         }
         .line-card {
             background: white; padding: 6px 10px; border-radius: 6px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2); display: flex; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2); display: flex; 
             justify-content: space-between; align-items: center; pointer-events: auto;
-            border-left: 5px solid #ccc;
         }
-        .c-1015 { border-color: #0055b8; }
-        .c-1510-A { border-color: #e30613; }
-        .c-1510-D { border-color: #f39c12; }
+        .c-1015 { border-left: 4px solid #0055b8; }
+        .c-1510-A { border-left: 4px solid #e30613; }
+        .c-1510-D { border-left: 4px solid #f39c12; }
         
-        .line-info h1 { margin: 0; font-size: 11px; font-weight: bold; color: #333; }
-        .status-badge { background: #4CAF50; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; }
+        .line-info h1 { margin: 0; font-size: 11px; text-transform: uppercase; }
+        .status-badge { background: #4CAF50; color: white; padding: 2px 6px; border-radius: 8px; font-size: 9px; }
 
+        /* Marcadores dos Autocarros */
         .bus-container { display: flex; flex-direction: column; align-items: center; }
         .bus-tag { 
             background: white; color: black; font-size: 8px; font-weight: bold; 
-            padding: 1px 4px; border: 1px solid #666; border-radius: 3px; margin-bottom: -2px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+            padding: 1px 3px; border: 1px solid #666; border-radius: 3px; margin-bottom: -2px;
         }
     </style>
 </head>
@@ -39,15 +39,15 @@
 
 <div class="ui-overlay">
     <div class="line-card c-1015">
-        <div class="line-info"><h1>1015 CIRCULAR</h1></div>
+        <div class="line-info"><h1>1015 Circular</h1></div>
         <div id="status-1015" class="status-badge">0</div>
     </div>
     <div class="line-card c-1510-A">
-        <div class="line-info"><h1>1510 ➔ AMADORA</h1></div>
+        <div class="line-info"><h1>1510 Amadora</h1></div>
         <div id="status-1510A" class="status-badge">0</div>
     </div>
     <div class="line-card c-1510-D">
-        <div class="line-info"><h1>1510 ➔ DAMAIA</h1></div>
+        <div class="line-info"><h1>1510 Damaia</h1></div>
         <div id="status-1510D" class="status-badge">0</div>
     </div>
 </div>
@@ -59,55 +59,56 @@
 
 <script>
     const map = L.map('map', { zoomControl: false }).setView([38.7490, -9.2150], 15);
-    
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap'
-    }).addTo(map);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // --- PONTOS FIXOS ---
+    // 1. PONTOS FIXOS
     const pts = [
         { n: "🏠 Casa", c: [38.746972, -9.228528], cl: "#27ae60" },
         { n: "🏫 Escola", c: [38.748177, -9.192485], cl: "#8e44ad" },
         { n: "📍 Reboleira", c: [38.750335, -9.221748], cl: "#d35400" }
     ];
     pts.forEach(p => {
-        L.marker(p.c, { icon: L.divIcon({ 
-            html: `<div style="background:${p.cl}; color:white; padding:2px 5px; border-radius:3px; font-size:10px; border:1px solid white; white-space:nowrap;">${p.n}</div>`, 
-            iconSize: [60, 20] 
-        }) }).addTo(map);
+        L.marker(p.c, { icon: L.divIcon({ html: `<div style="background:${p.cl}; color:white; padding:2px 5px; border-radius:3px; font-size:10px; border:1px solid white;">${p.n}</div>`, iconSize: [60, 20] }) }).addTo(map);
     });
 
-    // --- TRAJETOS FIXOS (Desenha uma vez e permanece) ---
-    // Nota: Coordenadas simplificadas para garantir visibilidade imediata
-    function drawStaticRoutes() {
-        const routes = [
-            { id: '1015', color: '#0055b8', path: [[38.7503,-9.2217], [38.7485,-9.2241], [38.7456,-9.2274], [38.7423,-9.2215], [38.7465,-9.2154], [38.7503,-9.2217]] },
-            { id: '1510', color: '#e30613', path: [[38.7588,-9.2216], [38.7523,-9.2217], [38.7491,-9.2244], [38.7468,-9.2286], [38.7431,-9.2310]] }
-        ];
-
-        routes.forEach(r => {
-            const poly = L.polyline(r.path, { color: r.color, weight: 4, opacity: 0.4, dashArray: '5, 10' }).addTo(map);
-            L.polylineDecorator(poly, {
-                patterns: [{ offset: 20, repeat: 100, symbol: L.Symbol.arrowHead({ pixelSize: 10, pathOptions: { color: r.color, fillOpacity: 1, stroke: false } }) }]
-            }).addTo(map);
-        });
+    // 2. DESENHAR TRAJETOS DINÂMICOS
+    async function drawRoutes() {
+        const lines = ['1015', '1510'];
+        for (let lId of lines) {
+            try {
+                const lRes = await fetch(`https://api.carrismetropolitana.pt/lines/${lId}`);
+                const lData = await lRes.json();
+                // Pegar o primeiro pattern de cada sentido
+                for (let i = 0; i < Math.min(lData.patterns.length, 2); i++) {
+                    const pRes = await fetch(`https://api.carrismetropolitana.pt/patterns/${lData.patterns[i]}`);
+                    const pData = await pRes.json();
+                    const coords = pData.path.map(pt => [pt.latitude, pt.longitude]);
+                    const color = lId === '1015' ? '#0055b8' : (i === 0 ? '#e30613' : '#f39c12');
+                    
+                    const poly = L.polyline(coords, { color: color, weight: 3, opacity: 0.4 }).addTo(map);
+                    L.polylineDecorator(poly, {
+                        patterns: [{ offset: 50, repeat: 120, symbol: L.Symbol.arrowHead({ pixelSize: 8, pathOptions: { color: color, fillOpacity: 1, stroke: false } }) }]
+                    }).addTo(map);
+                }
+            } catch (e) { console.log("Erro na rota " + lId); }
+        }
     }
 
-    // --- LÓGICA DOS AUTOCARROS ---
+    // 3. AUTOCARROS E SENTIDOS
     const markers = {};
-    function getBusIcon(line, dir) {
+    function getIco(line, dir) {
         let color = '#0055b8', label = 'Circular';
         if (line === '1510') {
             color = dir === 0 ? '#e30613' : '#f39c12';
-            label = dir === 0 ? '➔ AMADORA' : '➔ DAMAIA';
+            label = dir === 0 ? '➔ Amadora' : '➔ Damaia';
         }
         return L.divIcon({
             className: 'b-ico',
             html: `<div class="bus-container">
                     <div class="bus-tag">${label}</div>
-                    <div style="background:${color}; width:22px; height:22px; border-radius:50%; border:2px solid white; color:white; display:flex; justify-content:center; align-items:center; font-size:9px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.3);">${line.slice(-2)}</div>
+                    <div style="background:${color}; width:20px; height:20px; border-radius:50%; border:2px solid white; color:white; display:flex; justify-content:center; align-items:center; font-size:8px; font-weight:bold;">${line.slice(-2)}</div>
                    </div>`,
-            iconSize: [80, 45], iconAnchor: [40, 35]
+            iconSize: [60, 40], iconAnchor: [30, 30]
         });
     }
 
@@ -123,37 +124,24 @@
                 if (v.line_id === '1015') c1015++;
                 else v.direction_id === 0 ? c1510A++ : c1510D++;
 
-                const ico = getBusIcon(v.line_id, v.direction_id);
-                const popup = `<b>Viatura: ${v.id}</b><br>Linha: ${v.line_id}<br>Velocidade: ${v.speed || 0} km/h`;
-
+                const ico = getIco(v.line_id, v.direction_id);
                 if (markers[v.id]) {
-                    markers[v.id].setLatLng([v.lat, v.lon]).setIcon(ico).setPopupContent(popup);
+                    markers[v.id].setLatLng([v.lat, v.lon]).setIcon(ico);
                 } else {
-                    markers[v.id] = L.marker([v.lat, v.lon], { icon: ico }).addTo(map).bindPopup(popup);
+                    markers[v.id] = L.marker([v.lat, v.lon], { icon: ico }).addTo(map).bindPopup(`Viatura: ${v.id}<br>Linha: ${v.line_id}`);
                 }
             });
 
-            // Limpeza
-            Object.keys(markers).forEach(id => { 
-                if(!nowIds.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }
-            });
-
+            Object.keys(markers).forEach(id => { if(!nowIds.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }});
             document.getElementById('status-1015').innerText = c1015;
             document.getElementById('status-1510A').innerText = c1510A;
             document.getElementById('status-1510D').innerText = c1510D;
-        } catch (e) { console.error("Erro na atualização"); }
+        } catch (e) {}
     }
 
-    drawStaticRoutes();
+    drawRoutes();
     update();
-    setInterval(update, 10000); // Atualiza posição a cada 10s
-
-    // Minha localização
-    map.locate({setView: false, watch: true});
-    map.on('locationfound', (e) => {
-        if (!window.u) window.u = L.circleMarker(e.latlng, {radius:6, color:'#3498db', fillColor:'white', fillOpacity:1, weight:3}).addTo(map);
-        else window.u.setLatLng(e.latlng);
-    });
+    setInterval(update, 10000);
 </script>
 </body>
 </html>
