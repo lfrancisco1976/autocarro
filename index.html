@@ -12,7 +12,7 @@
         body { margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
         #map { height: 100vh; width: 100vw; z-index: 1; }
 
-        /* Interface Mobile-First */
+        /* Interface Overlay */
         .ui-overlay {
             position: absolute;
             top: 10px;
@@ -27,47 +27,40 @@
 
         .line-card {
             background: rgba(255, 255, 255, 0.95);
-            padding: 12px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             display: flex;
             justify-content: space-between;
             align-items: center;
             pointer-events: auto;
-            border-left: 6px solid #ffce00;
+            border-left: 5px solid #ffce00;
         }
 
-        .line-1015 { border-color: #0055b8; } /* Cor personalizada para distinguir */
+        .line-1015 { border-color: #0055b8; }
         .line-1510 { border-color: #e30613; }
 
-        .line-info h1 { margin: 0; font-size: 16px; color: #333; }
-        .line-info p { margin: 2px 0 0; font-size: 11px; color: #666; }
+        .line-info h1 { margin: 0; font-size: 14px; color: #333; }
+        .line-info p { margin: 0; font-size: 10px; color: #666; }
 
         .status-badge {
             background: #4CAF50;
             color: white;
-            padding: 4px 8px;
-            border-radius: 20px;
+            padding: 3px 8px;
+            border-radius: 12px;
             font-size: 10px;
             font-weight: bold;
-            text-transform: uppercase;
         }
 
-        /* Botão de Localização */
-        .locate-btn {
-            position: absolute;
-            bottom: 30px;
-            right: 20px;
-            z-index: 1000;
+        /* Estilo para Marcadores Fixos */
+        .static-marker-label {
             background: white;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            cursor: pointer;
+            border: 2px solid #333;
+            border-radius: 4px;
+            padding: 2px 5px;
+            font-weight: bold;
+            font-size: 11px;
+            white-space: nowrap;
         }
     </style>
 </head>
@@ -84,7 +77,7 @@
     <div class="line-card line-1510">
         <div class="line-info">
             <h1>1510 - Amadora (Hospital)</h1>
-            <p>Damaia de Baixo (Pavilhão)</p>
+            <p>Damaia De Baixo (Pavilhão)</p>
         </div>
         <div id="status-1510" class="status-badge">A carregar...</div>
     </div>
@@ -96,28 +89,47 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // Configuração inicial do mapa centrado na Amadora/Reboleira
-    const map = L.map('map', { zoomControl: false }).setView([38.7500, -9.2300], 14);
+    // Configuração do mapa focada nos teus pontos
+    const map = L.map('map', { zoomControl: false }).setView([38.7490, -9.2150], 15);
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap'
     }).addTo(map);
 
+    // --- PONTOS FIXOS ---
+    const localizacoesFixas = [
+        { nome: "🏠 Casa", coords: [38.746972, -9.228528], cor: "#2ecc71" },
+        { nome: "🏫 Escola", coords: [38.748177, -9.192485], cor: "#9b59b6" },
+        { nome: "📍 Reboleira", coords: [38.750335, -9.221748], cor: "#e67e22" }
+    ];
+
+    localizacoesFixas.forEach(local => {
+        L.marker(local.coords, {
+            icon: L.divIcon({
+                className: 'static-marker',
+                html: `<div style="background:${local.cor}; color:white; padding:4px 8px; border-radius:5px; 
+                       font-weight:bold; font-size:12px; border:2px solid white; box-shadow:0 2px 5px rgba(0,0,0,0.2);">
+                       ${local.nome}</div>`,
+                iconSize: [80, 30],
+                iconAnchor: [40, 15]
+            })
+        }).addTo(map);
+    });
+
+    // --- AUTOCARROS EM TEMPO REAL ---
     const vehicleMarkers = {};
     const linesToTrack = ['1015', '1510'];
 
-    // Icones personalizados
     const createBusIcon = (line) => L.divIcon({
-        className: 'custom-bus-icon',
+        className: 'bus-icon',
         html: `<div style="background-color: ${line === '1015' ? '#0055b8' : '#e30613'}; 
-                color: white; padding: 5px; border-radius: 50%; border: 2px solid white;
-                width: 25px; height: 25px; display: flex; justify-content: center; 
-                align-items: center; font-weight: bold; font-size: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
-                ${line}</div>`,
+                color: white; border-radius: 50%; border: 2px solid white;
+                width: 28px; height: 28px; display: flex; justify-content: center; 
+                align-items: center; font-weight: bold; font-size: 9px; box-shadow: 0 2px 8px rgba(0,0,0,0.4);">
+                🚌<br>${line}</div>`,
         iconSize: [30, 30]
     });
 
-    // Função principal para atualizar veículos
     async function updateVehicles() {
         try {
             const response = await fetch('https://api.carrismetropolitana.pt/vehicles');
@@ -125,13 +137,16 @@
             
             const filtered = vehicles.filter(v => linesToTrack.includes(v.line_id));
             
-            // Contadores para a UI
             let count1015 = 0;
             let count1510 = 0;
+
+            // Marcar IDs ativos para limpeza posterior
+            const activeIds = new Set();
 
             filtered.forEach(bus => {
                 const id = bus.id;
                 const pos = [bus.lat, bus.lon];
+                activeIds.add(id);
 
                 if (bus.line_id === '1015') count1015++;
                 if (bus.line_id === '1510') count1510++;
@@ -141,44 +156,37 @@
                 } else {
                     vehicleMarkers[id] = L.marker(pos, { icon: createBusIcon(bus.line_id) })
                         .addTo(map)
-                        .bindPopup(`<b>Autocarro ${id}</b><br>Linha: ${bus.line_id}<br>Próxima paragem: ${bus.stop_id || 'N/A'}`);
+                        .bindPopup(`<b>Viatura ${id}</b><br>Linha: ${bus.line_id}`);
                 }
             });
 
-            // Atualizar UI
-            document.getElementById('status-1015').innerText = `${count1015} a circular`;
-            document.getElementById('status-1510').innerText = `${count1510} a circular`;
+            // Remover autocarros que saíram de circulação
+            Object.keys(vehicleMarkers).forEach(id => {
+                if (!activeIds.has(id)) {
+                    map.removeLayer(vehicleMarkers[id]);
+                    delete vehicleMarkers[id];
+                }
+            });
+
+            document.getElementById('status-1015').innerText = `${count1015} na rua`;
+            document.getElementById('status-1510').innerText = `${count1510} na rua`;
 
         } catch (error) {
-            console.error('Erro ao obter dados:', error);
+            console.error('Erro na API:', error);
         }
     }
 
-    // Carregar percursos (Shapes)
-    async function loadRoutes() {
-        linesToTrack.forEach(async (lineId) => {
-            try {
-                // Nota: A API pode requerer o ID da rota específica, aqui simplificamos para o percurso principal
-                const response = await fetch(`https://api.carrismetropolitana.pt/lines/${lineId}`);
-                const data = await response.json();
-                // Aqui poderias desenhar o percurso GeoJSON se disponível no endpoint
-            } catch (e) { console.log("Erro ao carregar rota visual"); }
-        });
-    }
-
-    // Ciclo de atualização (cada 15 segundos)
+    // Atualização constante (15 segundos)
     setInterval(updateVehicles, 15000);
     updateVehicles();
-    loadRoutes();
 
-    // Geolocalização do utilizador
+    // Mostrar localização do utilizador
     map.locate({setView: false, watch: true});
     map.on('locationfound', (e) => {
-        const radius = e.accuracy / 2;
-        if (!window.myCircle) {
-            window.myCircle = L.circle(e.latlng, radius).addTo(map);
+        if (!window.userDot) {
+            window.userDot = L.circleMarker(e.latlng, { radius: 8, color: '#3498db', fillOpacity: 0.8 }).addTo(map);
         } else {
-            window.myCircle.setLatLng(e.latlng).setRadius(radius);
+            window.userDot.setLatLng(e.latlng);
         }
     });
 </script>
