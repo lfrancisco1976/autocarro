@@ -20,18 +20,19 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.2); display: flex; 
             justify-content: space-between; align-items: center; pointer-events: auto;
         }
-        .c-1015 { border-left: 4px solid #0055b8; }
-        .c-1510-A { border-left: 4px solid #e30613; }
-        .c-1510-D { border-left: 4px solid #f39c12; }
+        .c-1015 { border-left: 5px solid #0055b8; }
+        .c-1510-A { border-left: 5px solid #e30613; }
+        .c-1510-D { border-left: 5px solid #f39c12; }
         
-        .line-info h1 { margin: 0; font-size: 11px; text-transform: uppercase; }
-        .status-badge { background: #4CAF50; color: white; padding: 2px 6px; border-radius: 8px; font-size: 9px; }
+        .line-info h1 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .status-badge { background: #4CAF50; color: white; padding: 2px 6px; border-radius: 8px; font-size: 10px; font-weight: bold; }
 
         /* Marcadores dos Autocarros */
         .bus-container { display: flex; flex-direction: column; align-items: center; }
         .bus-tag { 
-            background: white; color: black; font-size: 8px; font-weight: bold; 
-            padding: 1px 3px; border: 1px solid #666; border-radius: 3px; margin-bottom: -2px;
+            background: white; color: black; font-size: 9px; font-weight: bold; 
+            padding: 1px 4px; border: 1px solid #666; border-radius: 3px; 
+            margin-bottom: -2px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
     </style>
 </head>
@@ -43,11 +44,11 @@
         <div id="status-1015" class="status-badge">0</div>
     </div>
     <div class="line-card c-1510-A">
-        <div class="line-info"><h1>1510 Amadora</h1></div>
+        <div class="line-info"><h1>1510 ➔ Amadora</h1></div>
         <div id="status-1510A" class="status-badge">0</div>
     </div>
     <div class="line-card c-1510-D">
-        <div class="line-info"><h1>1510 Damaia</h1></div>
+        <div class="line-info"><h1>1510 ➔ Damaia</h1></div>
         <div id="status-1510D" class="status-badge">0</div>
     </div>
 </div>
@@ -68,33 +69,52 @@
         { n: "📍 Reboleira", c: [38.750335, -9.221748], cl: "#d35400" }
     ];
     pts.forEach(p => {
-        L.marker(p.c, { icon: L.divIcon({ html: `<div style="background:${p.cl}; color:white; padding:2px 5px; border-radius:3px; font-size:10px; border:1px solid white;">${p.n}</div>`, iconSize: [60, 20] }) }).addTo(map);
+        L.marker(p.c, { 
+            icon: L.divIcon({ 
+                html: `<div style="background:${p.cl}; color:white; padding:2px 6px; border-radius:3px; font-size:10px; border:1px solid white; white-space:nowrap;">${p.n}</div>`, 
+                iconSize: [60, 20] 
+            }) 
+        }).addTo(map);
     });
 
-    // 2. DESENHAR TRAJETOS DINÂMICOS
+    // 2. DESENHAR TRAJETOS (Patterns)
     async function drawRoutes() {
         const lines = ['1015', '1510'];
         for (let lId of lines) {
             try {
                 const lRes = await fetch(`https://api.carrismetropolitana.pt/lines/${lId}`);
                 const lData = await lRes.json();
-                // Pegar o primeiro pattern de cada sentido
-                for (let i = 0; i < Math.min(lData.patterns.length, 2); i++) {
-                    const pRes = await fetch(`https://api.carrismetropolitana.pt/patterns/${lData.patterns[i]}`);
+                
+                // Itera pelos padrões (sentidos)
+                for (let i = 0; i < lData.patterns.length; i++) {
+                    const pId = lData.patterns[i];
+                    const pRes = await fetch(`https://api.carrismetropolitana.pt/patterns/${pId}`);
                     const pData = await pRes.json();
-                    const coords = pData.path.map(pt => [pt.latitude, pt.longitude]);
-                    const color = lId === '1015' ? '#0055b8' : (i === 0 ? '#e30613' : '#f39c12');
                     
-                    const poly = L.polyline(coords, { color: color, weight: 3, opacity: 0.4 }).addTo(map);
+                    const coords = pData.path.map(pt => [pt.latitude, pt.longitude]);
+                    
+                    // Lógica de cores baseada no sentido da 1510
+                    let routeColor = '#0055b8'; // Default 1015
+                    if (lId === '1510') {
+                        // Geralmente pattern 0 é um sentido, pattern 1 é outro
+                        routeColor = pData.direction === 0 ? '#e30613' : '#f39c12';
+                    }
+
+                    const poly = L.polyline(coords, { color: routeColor, weight: 3, opacity: 0.35 }).addTo(map);
+                    
                     L.polylineDecorator(poly, {
-                        patterns: [{ offset: 50, repeat: 120, symbol: L.Symbol.arrowHead({ pixelSize: 8, pathOptions: { color: color, fillOpacity: 1, stroke: false } }) }]
+                        patterns: [{ 
+                            offset: 50, 
+                            repeat: 120, 
+                            symbol: L.Symbol.arrowHead({ pixelSize: 9, pathOptions: { color: routeColor, fillOpacity: 1, stroke: false } }) 
+                        }]
                     }).addTo(map);
                 }
-            } catch (e) { console.log("Erro na rota " + lId); }
+            } catch (e) { console.log("Erro ao carregar trajeto para: " + lId); }
         }
     }
 
-    // 3. AUTOCARROS E SENTIDOS
+    // 3. ICONES DINÂMICOS
     const markers = {};
     function getIco(line, dir) {
         let color = '#0055b8', label = 'Circular';
@@ -106,9 +126,9 @@
             className: 'b-ico',
             html: `<div class="bus-container">
                     <div class="bus-tag">${label}</div>
-                    <div style="background:${color}; width:20px; height:20px; border-radius:50%; border:2px solid white; color:white; display:flex; justify-content:center; align-items:center; font-size:8px; font-weight:bold;">${line.slice(-2)}</div>
+                    <div style="background:${color}; width:22px; height:22px; border-radius:50%; border:2px solid white; color:white; display:flex; justify-content:center; align-items:center; font-size:9px; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${line.slice(-2)}</div>
                    </div>`,
-            iconSize: [60, 40], iconAnchor: [30, 30]
+            iconSize: [80, 45], iconAnchor: [40, 35]
         });
     }
 
@@ -121,27 +141,50 @@
 
             data.filter(v => ['1015', '1510'].includes(v.line_id)).forEach(v => {
                 nowIds.add(v.id);
-                if (v.line_id === '1015') c1015++;
-                else v.direction_id === 0 ? c1510A++ : c1510D++;
+                
+                // Contagem para os 3 cartões
+                if (v.line_id === '1015') {
+                    c1015++;
+                } else {
+                    v.direction_id === 0 ? c1510A++ : c1510D++;
+                }
 
                 const ico = getIco(v.line_id, v.direction_id);
                 if (markers[v.id]) {
                     markers[v.id].setLatLng([v.lat, v.lon]).setIcon(ico);
                 } else {
-                    markers[v.id] = L.marker([v.lat, v.lon], { icon: ico }).addTo(map).bindPopup(`Viatura: ${v.id}<br>Linha: ${v.line_id}`);
+                    markers[v.id] = L.marker([v.lat, v.lon], { icon: ico, zIndexOffset: 1000 })
+                        .addTo(map)
+                        .bindPopup(`<b>Viatura: ${v.id}</b><br>Linha: ${v.line_id}`);
                 }
             });
 
-            Object.keys(markers).forEach(id => { if(!nowIds.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }});
+            // Remover viaturas que saíram de circulação
+            Object.keys(markers).forEach(id => { 
+                if(!nowIds.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }
+            });
+
+            // Atualizar contadores na UI
             document.getElementById('status-1015').innerText = c1015;
             document.getElementById('status-1510A').innerText = c1510A;
             document.getElementById('status-1510D').innerText = c1510D;
-        } catch (e) {}
+        } catch (e) { console.log("Erro na atualização dos veículos."); }
     }
 
+    // Inicialização
     drawRoutes();
     update();
-    setInterval(update, 10000);
+    setInterval(update, 10000); // Atualiza a cada 10 segundos
+
+    // Localização do Utilizador
+    map.locate({setView: false, watch: true});
+    map.on('locationfound', (e) => {
+        if (!window.uMarker) {
+            window.uMarker = L.circleMarker(e.latlng, {radius: 7, color: '#3498db', fillColor: 'white', fillOpacity: 1, weight: 3}).addTo(map);
+        } else {
+            window.uMarker.setLatLng(e.latlng);
+        }
+    });
 </script>
 </body>
 </html>
