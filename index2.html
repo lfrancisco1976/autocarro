@@ -3,51 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bus Tracker Pro - Multi-API</title>
+    <title>Bus Tracker Mini - Multi-Source</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #f4f4f4; }
+        body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #f0f0f0; }
         #map { height: 100vh; width: 100vw; }
         
+        /* Overlay de Cartões mais pequenos */
         .ui-overlay {
-            position: absolute; top: 10px; left: 10px; right: 10px;
-            z-index: 1000; display: flex; flex-direction: column; gap: 6px; pointer-events: none;
+            position: absolute; top: 8px; left: 8px; right: 8px;
+            z-index: 1000; display: flex; flex-direction: column; gap: 4px; pointer-events: none;
         }
         .line-card {
-            background: white; padding: 8px 12px; border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; 
+            background: white; padding: 4px 10px; border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; 
             justify-content: space-between; align-items: center; pointer-events: auto;
-            border-left: 6px solid #ccc;
+            border-left: 5px solid #ccc; height: 32px;
         }
         .c-1013 { border-left-color: #27ae60; }
         .c-1015 { border-left-color: #0055b8; }
         .c-1510 { border-left-color: #e30613; }
         .c-767  { border-left-color: #f1c40f; }
         
-        .line-info h1 { margin: 0; font-size: 11px; text-transform: uppercase; font-weight: 800; color: #333; }
-        .status-badge { background: #27ae60; color: white; padding: 2px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; }
+        .line-info h1 { 
+            margin: 0; font-size: 10px; text-transform: uppercase; font-weight: 800; 
+            cursor: pointer; color: #333; flex-grow: 1;
+        }
+        .status-badge { 
+            background: #444; color: white; padding: 2px 6px; 
+            border-radius: 10px; font-size: 9px; font-weight: bold; margin-left: 8px;
+        }
 
+        /* Estilo dos Marcadores */
         .bus-container { display: flex; flex-direction: column; align-items: center; }
         .bus-tag { 
             background: white; color: #000; font-size: 9px; font-weight: 900; 
-            padding: 2px 6px; border: 2.5px solid #333; border-radius: 4px; 
+            padding: 1px 4px; border: 2px solid #333; border-radius: 3px; 
             margin-bottom: 2px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-            text-align: center; line-height: 1.1;
+            text-align: center;
         }
         .bus-emoji-circle {
-            width: 28px; height: 28px; border-radius: 50%; border: 2px solid white; 
+            width: 26px; height: 26px; border-radius: 50%; border: 2px solid white; 
             display: flex; justify-content: center; align-items: center; 
-            font-size: 16px; box-shadow: 0 3px 6px rgba(0,0,0,0.4);
+            font-size: 16px; box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+        }
+
+        /* Modal */
+        .modal {
+            display: none; position: fixed; z-index: 2000; left: 0; top: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.9);
+            justify-content: center; align-items: center;
+        }
+        .modal-content { position: relative; max-width: 95%; max-height: 90%; }
+        .modal-content img { width: 100%; height: auto; border-radius: 8px; border: 2px solid white; }
+        .close-btn {
+            position: absolute; top: -12px; right: -12px; background: #e30613;
+            color: white; border: 2px solid white; border-radius: 50%; width: 30px; height: 30px;
+            cursor: pointer; font-weight: bold;
         }
     </style>
 </head>
 <body>
 
 <div class="ui-overlay">
-    <div class="line-card c-1013"><h1>1013 Reboleira ➔ Queijas</h1><div id="status-1013" class="status-badge">0</div></div>
-    <div class="line-card c-1015"><h1>1015 Circular</h1><div id="status-1015" class="status-badge">0</div></div>
-    <div class="line-card c-1510"><h1>1510 Amadora ➔ Damaia</h1><div id="status-1510" class="status-badge">0</div></div>
-    <div class="line-card c-767"><h1>767 Fornecedor Ext (Dir 0)</h1><div id="status-767" class="status-badge">0</div></div>
+    <div class="line-card c-1013"><h1 onclick="openModal('1013')">1013 Reboleira ➔ Queijas</h1><div id="status-1013" class="status-badge">0</div></div>
+    <div class="line-card c-1015"><h1 onclick="openModal('1015')">1015 Circular</h1><div id="status-1015" class="status-badge">0</div></div>
+    <div class="line-card c-1510"><h1 onclick="openModal('1510')">1510 Amadora ➔ Damaia</h1><div id="status-1510" class="status-badge">0</div></div>
+    <div class="line-card c-767"><h1 onclick="openModal('767')">767 Fornecedor Ext (Dir 0)</h1><div id="status-767" class="status-badge">0</div></div>
+</div>
+
+<div id="imgModal" class="modal" onclick="closeModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <button class="close-btn" onclick="closeModal()">✕</button>
+        <img id="modalImg" src="" alt="Percurso">
+    </div>
 </div>
 
 <div id="map"></div>
@@ -55,13 +84,21 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // Filtros de paragem (Carris Metropolitana)
+    // Filtros de paragem (Carris Metropolitana - conforme image_1c3717.png)
     const ALLOWED_STOPS = {
         '1015': ['030844', '030458', '030485', '030487', '030489'],
         '1013': ['030583', '030086', '030084', '030113', '030448', '030449'],
         '1510': ['030847', '172055', '172059', '172061', '172063', '170927', '172065', '030313', '030653', '030348', '030346', '030475', '030477', '030479', '030481', '030464', '030483', '030462', '030459', '030111', '030086', '030655', '030657', '030492', '030454', '030659', '030450', '030447']
     };
 
+    // Modal
+    function openModal(lineId) {
+        document.getElementById('modalImg').src = lineId + '.jpg';
+        document.getElementById('imgModal').style.display = 'flex';
+    }
+    function closeModal() { document.getElementById('imgModal').style.display = 'none'; }
+
+    // Mapa
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([38.7490, -9.2150], 14);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
@@ -75,7 +112,7 @@
                     <div class="bus-tag">${line}<br>${plate || '---'}</div>
                     <div class="bus-emoji-circle" style="background:${colors[line] || '#333'};">🚌</div>
                    </div>`,
-            iconSize: [120, 70], iconAnchor: [60, 60]
+            iconSize: [100, 60], iconAnchor: [50, 50]
         });
     }
 
@@ -89,7 +126,7 @@
             const nowIds = new Set();
             let counts = { '1013': 0, '1015': 0, '1510': 0, '767': 0 };
 
-            // 1. Processar Carris Metropolitana (Lógica Anterior)
+            // 1. Processar Carris Metropolitana
             resCM.forEach(v => {
                 const lineId = v.line_id;
                 const pattern = v.pattern_id || "";
@@ -101,7 +138,7 @@
                 }
             });
 
-            // 2. Processar Fornecedor JDCP (Nova Lógica baseada no teu snippet)
+            // 2. Processar JDCP (Lógica aninhada conforme confirmado)
             resJDCP.forEach(v => {
                 const vId = v.id || "";
                 const vehicleObj = v.vehicle || {};
@@ -110,11 +147,11 @@
                 const subVehicle = vehicleObj.vehicle || {};
 
                 // Filtro: ID contém 767 E direção é 0
-                if (vId.includes('767') && trip.directionId === 0) {
+                if (vId.includes('767') && trip.directionId === 1) {
                     renderBus(
                         vId, 
                         "767", 
-                        subVehicle.licensePlate, // Matrícula de dentro do objeto
+                        subVehicle.licensePlate, 
                         pos.latitude, 
                         pos.longitude, 
                         nowIds, 
@@ -128,13 +165,13 @@
                 if(!nowIds.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }
             });
 
-            // UI Update
+            // Atualização da UI
             Object.keys(counts).forEach(id => {
                 const el = document.getElementById('status-' + id);
                 if(el) el.innerText = counts[id];
             });
             
-        } catch (e) { console.error("Erro no fetch:", e); }
+        } catch (e) { console.error("Erro na atualização:", e); }
     }
 
     function renderBus(id, line, plate, lat, lon, nowIds, counts) {
@@ -148,12 +185,14 @@
         }
     }
 
+    // Loop de atualização
     update();
     setInterval(update, 10000);
 
+    // Geolocalização do Utilizador
     map.locate({setView: false, watch: true});
     map.on('locationfound', (e) => {
-        if (!window.userM) window.userM = L.circleMarker(e.latlng, {radius: 6, color: '#3498db', fillColor: 'white', weight: 3}).addTo(map);
+        if (!window.userM) window.userM = L.circleMarker(e.latlng, {radius: 5, color: '#3498db', fillColor: 'white', fillOpacity: 1, weight: 3}).addTo(map);
         else window.userM.setLatLng(e.latlng);
     });
 </script>
