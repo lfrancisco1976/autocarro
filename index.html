@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bus Tracker - 1015 & 1510</title>
+    <title>Monitor CM - 1013, 1015, 1510</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #eee; }
         #map { height: 100vh; width: 100vw; }
 
-        /* UI Compacta */
         .ui-overlay {
             position: absolute; top: 8px; left: 8px; right: 8px;
             z-index: 1000; display: flex; flex-direction: column; gap: 4px; pointer-events: none;
@@ -20,17 +19,16 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.2); display: flex; 
             justify-content: space-between; align-items: center; pointer-events: auto;
         }
-        .c-1015 { border-left: 5px solid #0055b8; }
-        .c-1510-A { border-left: 5px solid #e30613; }
-        .c-1510-D { border-left: 5px solid #f39c12; }
+        .c-1013 { border-left: 5px solid #27ae60; } /* Verde para a nova 1013 */
+        .c-1015 { border-left: 5px solid #0055b8; } /* Azul */
+        .c-1510 { border-left: 5px solid #e30613; } /* Vermelho */
         
-        .line-info h1 { margin: 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .line-info h1 { margin: 0; font-size: 11px; text-transform: uppercase; font-weight: bold; }
         .status-badge { background: #4CAF50; color: white; padding: 2px 6px; border-radius: 8px; font-size: 10px; font-weight: bold; }
 
-        /* Marcadores dos Autocarros */
         .bus-container { display: flex; flex-direction: column; align-items: center; }
         .bus-tag { 
-            background: white; color: black; font-size: 9px; font-weight: bold; 
+            background: white; color: black; font-size: 8px; font-weight: bold; 
             padding: 1px 4px; border: 1px solid #666; border-radius: 3px; 
             margin-bottom: -2px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
@@ -39,17 +37,17 @@
 <body>
 
 <div class="ui-overlay">
+    <div class="line-card c-1013">
+        <div class="line-info"><h1>1013 Queijas</h1></div>
+        <div id="status-1013" class="status-badge">0</div>
+    </div>
     <div class="line-card c-1015">
         <div class="line-info"><h1>1015 Circular</h1></div>
         <div id="status-1015" class="status-badge">0</div>
     </div>
-    <div class="line-card c-1510-A">
-        <div class="line-info"><h1>1510 ➔ Amadora</h1></div>
-        <div id="status-1510A" class="status-badge">0</div>
-    </div>
-    <div class="line-card c-1510-D">
+    <div class="line-card c-1510">
         <div class="line-info"><h1>1510 ➔ Damaia</h1></div>
-        <div id="status-1510D" class="status-badge">0</div>
+        <div id="status-1510" class="status-badge">0</div>
     </div>
 </div>
 
@@ -62,66 +60,42 @@
     const map = L.map('map', { zoomControl: false }).setView([38.7490, -9.2150], 15);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // 1. PONTOS FIXOS
+    // 1. PONTOS DE REFERÊNCIA
     const pts = [
-        { n: "🏠 Casa", c: [38.746972, -9.228528], cl: "#27ae60" },
+        { n: "🏠 Casa", c: [38.746972, -9.228528], cl: "#2c3e50" },
         { n: "🏫 Escola", c: [38.748177, -9.192485], cl: "#8e44ad" },
         { n: "📍 Reboleira", c: [38.750335, -9.221748], cl: "#d35400" }
     ];
     pts.forEach(p => {
-        L.marker(p.c, { 
-            icon: L.divIcon({ 
-                html: `<div style="background:${p.cl}; color:white; padding:2px 6px; border-radius:3px; font-size:10px; border:1px solid white; white-space:nowrap;">${p.n}</div>`, 
-                iconSize: [60, 20] 
-            }) 
-        }).addTo(map);
+        L.marker(p.c, { icon: L.divIcon({ html: `<div style="background:${p.cl}; color:white; padding:2px 6px; border-radius:3px; font-size:10px; border:1px solid white; white-space:nowrap;">${p.n}</div>`, iconSize: [60, 20] }) }).addTo(map);
     });
 
-    // 2. DESENHAR TRAJETOS (Patterns)
-    async function drawRoutes() {
-        const lines = ['1015', '1510'];
-        for (let lId of lines) {
-            try {
-                const lRes = await fetch(`https://api.carrismetropolitana.pt/lines/${lId}`);
-                const lData = await lRes.json();
-                
-                // Itera pelos padrões (sentidos)
-                for (let i = 0; i < lData.patterns.length; i++) {
-                    const pId = lData.patterns[i];
-                    const pRes = await fetch(`https://api.carrismetropolitana.pt/patterns/${pId}`);
-                    const pData = await pRes.json();
-                    
-                    const coords = pData.path.map(pt => [pt.latitude, pt.longitude]);
-                    
-                    // Lógica de cores baseada no sentido da 1510
-                    let routeColor = '#0055b8'; // Default 1015
-                    if (lId === '1510') {
-                        // Geralmente pattern 0 é um sentido, pattern 1 é outro
-                        routeColor = pData.direction === 0 ? '#e30613' : '#f39c12';
-                    }
+    // 2. TRAJETOS FIXOS (Baseados nos links fornecidos)
+    function drawRoutes() {
+        const routes = [
+            // 1013 - Reboleira / Queijas (Verde)
+            { id: '1013', color: '#27ae60', path: [[38.7505,-9.2223], [38.7454,-9.2312], [38.7365,-9.2384], [38.7245,-9.2485]] },
+            // 1015 - Circular (Azul)
+            { id: '1015', color: '#0055b8', path: [[38.7503,-9.2217], [38.7485,-9.2241], [38.7456,-9.2274], [38.7423,-9.2215], [38.7465,-9.2154], [38.7503,-9.2217]] },
+            // 1510 - Amadora -> Damaia (Vermelho)
+            { id: '1510', color: '#e30613', path: [[38.7588,-9.2216], [38.7523,-9.2217], [38.7491,-9.2244], [38.7468,-9.2286], [38.7431,-9.2310]] }
+        ];
 
-                    const poly = L.polyline(coords, { color: routeColor, weight: 3, opacity: 0.35 }).addTo(map);
-                    
-                    L.polylineDecorator(poly, {
-                        patterns: [{ 
-                            offset: 50, 
-                            repeat: 120, 
-                            symbol: L.Symbol.arrowHead({ pixelSize: 9, pathOptions: { color: routeColor, fillOpacity: 1, stroke: false } }) 
-                        }]
-                    }).addTo(map);
-                }
-            } catch (e) { console.log("Erro ao carregar trajeto para: " + lId); }
-        }
+        routes.forEach(r => {
+            const poly = L.polyline(r.path, { color: r.color, weight: 4, opacity: 0.5 }).addTo(map);
+            L.polylineDecorator(poly, {
+                patterns: [{ offset: 40, repeat: 100, symbol: L.Symbol.arrowHead({ pixelSize: 10, pathOptions: { color: r.color, fillOpacity: 1, stroke: false } }) }]
+            }).addTo(map);
+        });
     }
 
-    // 3. ICONES DINÂMICOS
+    // 3. VEÍCULOS EM TEMPO REAL
     const markers = {};
-    function getIco(line, dir) {
+    function getBusIcon(line, dir) {
         let color = '#0055b8', label = 'Circular';
-        if (line === '1510') {
-            color = dir === 0 ? '#e30613' : '#f39c12';
-            label = dir === 0 ? '➔ Damaia' : '➔ Amadora';
-        }
+        if (line === '1013') { color = '#27ae60'; label = '➔ Queijas'; }
+        if (line === '1510') { color = '#e30613'; label = '➔ Damaia'; }
+        
         return L.divIcon({
             className: 'b-ico',
             html: `<div class="bus-container">
@@ -137,53 +111,45 @@
             const res = await fetch('https://api.carrismetropolitana.pt/vehicles');
             const data = await res.json();
             const nowIds = new Set();
-            let c1015 = 0, c1510A = 0, c1510D = 0;
+            let c1013 = 0, c1015 = 0, c1510 = 0;
 
-            data.filter(v => ['1015', '1510'].includes(v.line_id)).forEach(v => {
-                nowIds.add(v.id);
-                
-                // Contagem para os 3 cartões
-                if (v.line_id === '1015') {
-                    c1015++;
-                } else {
-                    v.direction_id === 0 ? c1510A++ : c1510D++;
-                }
+            data.forEach(v => {
+                // Filtrar apenas as linhas pretendidas e o sentido específico da 1510
+                if (v.line_id === '1013' || v.line_id === '1015' || (v.line_id === '1510' && v.direction_id === 0)) {
+                    nowIds.add(v.id);
+                    if (v.line_id === '1013') c1013++;
+                    else if (v.line_id === '1015') c1015++;
+                    else c1510++;
 
-                const ico = getIco(v.line_id, v.direction_id);
-                if (markers[v.id]) {
-                    markers[v.id].setLatLng([v.lat, v.lon]).setIcon(ico);
-                } else {
-                    markers[v.id] = L.marker([v.lat, v.lon], { icon: ico, zIndexOffset: 1000 })
-                        .addTo(map)
-                        .bindPopup(`<b>Viatura: ${v.id}</b><br>Linha: ${v.line_id}`);
+                    const ico = getBusIcon(v.line_id, v.direction_id);
+                    if (markers[v.id]) {
+                        markers[v.id].setLatLng([v.lat, v.lon]).setIcon(ico);
+                    } else {
+                        markers[v.id] = L.marker([v.lat, v.lon], { icon: ico, zIndexOffset: 1000 }).addTo(map);
+                    }
                 }
             });
 
-            // Remover viaturas que saíram de circulação
+            // Limpeza de autocarros que saíram
             Object.keys(markers).forEach(id => { 
                 if(!nowIds.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }
             });
 
-            // Atualizar contadores na UI
+            document.getElementById('status-1013').innerText = c1013;
             document.getElementById('status-1015').innerText = c1015;
-            document.getElementById('status-1510A').innerText = c1510A;
-            document.getElementById('status-1510D').innerText = c1510D;
-        } catch (e) { console.log("Erro na atualização dos veículos."); }
+            document.getElementById('status-1510').innerText = c1510;
+        } catch (e) { console.log("Erro na API"); }
     }
 
-    // Inicialização
     drawRoutes();
     update();
-    setInterval(update, 10000); // Atualiza a cada 10 segundos
+    setInterval(update, 10000);
 
-    // Localização do Utilizador
+    // Geolocalização
     map.locate({setView: false, watch: true});
     map.on('locationfound', (e) => {
-        if (!window.uMarker) {
-            window.uMarker = L.circleMarker(e.latlng, {radius: 7, color: '#3498db', fillColor: 'white', fillOpacity: 1, weight: 3}).addTo(map);
-        } else {
-            window.uMarker.setLatLng(e.latlng);
-        }
+        if (!window.uM) window.uM = L.circleMarker(e.latlng, {radius: 7, color: '#3498db', fillColor: 'white', fillOpacity: 1, weight: 3}).addTo(map);
+        else window.uM.setLatLng(e.latlng);
     });
 </script>
 </body>
