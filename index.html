@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bus Tracker - Filtro de Sentidos</title>
+    <title>Bus Tracker - Imagens</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #eee; }
         #map { height: 100vh; width: 100vw; }
+        
         .ui-overlay {
             position: absolute; top: 8px; left: 8px; right: 8px;
             z-index: 1000; display: flex; flex-direction: column; gap: 4px; pointer-events: none;
@@ -20,7 +21,14 @@
         .c-1013 { border-left: 5px solid #27ae60; }
         .c-1015 { border-left: 5px solid #0055b8; }
         .c-1510 { border-left: 5px solid #e30613; }
-        .line-info h1 { margin: 0; font-size: 11px; text-transform: uppercase; font-weight: bold; }
+        
+        /* Nome da linha clicável */
+        .line-info h1 { 
+            margin: 0; font-size: 11px; text-transform: uppercase; font-weight: bold; 
+            cursor: pointer; padding: 5px; border-radius: 4px; transition: background 0.2s;
+        }
+        .line-info h1:hover { background: #f0f0f0; }
+
         .status-badge { background: #4CAF50; color: white; padding: 2px 6px; border-radius: 8px; font-size: 10px; }
         .bus-container { display: flex; flex-direction: column; align-items: center; }
         .bus-tag { 
@@ -28,22 +36,47 @@
             padding: 1px 4px; border: 1px solid #666; border-radius: 3px; 
             margin-bottom: -2px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
         }
+
+        /* Estilos do Modal Pop-up */
+        .modal {
+            display: none; position: fixed; z-index: 2000; left: 0; top: 0;
+            width: 100%; height: 100%; background-color: rgba(0,0,0,0.8);
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            position: relative; max-width: 90%; max-height: 80%;
+            background: white; padding: 10px; border-radius: 8px;
+        }
+        .modal-content img { width: 100%; height: auto; border-radius: 4px; }
+        .close-btn {
+            position: absolute; top: -15px; right: -15px; background: #e30613;
+            color: white; border: none; border-radius: 50%; width: 30px; height: 30px;
+            cursor: pointer; font-weight: bold; font-size: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
 
 <div class="ui-overlay">
     <div class="line-card c-1013">
-        <div class="line-info"><h1>1013 Reboleira ➔ Queijas</h1></div>
+        <div class="line-info"><h1 onclick="openModal('1013')">1013 Reboleira ➔ Queijas</h1></div>
         <div id="status-1013" class="status-badge">0</div>
     </div>
     <div class="line-card c-1015">
-        <div class="line-info"><h1>1015 Circular</h1></div>
+        <div class="line-info"><h1 onclick="openModal('1015')">1015 Circular</h1></div>
         <div id="status-1015" class="status-badge">0</div>
     </div>
     <div class="line-card c-1510">
-        <div class="line-info"><h1>1510 Amadora ➔ Damaia</h1></div>
+        <div class="line-info"><h1 onclick="openModal('1510')">1510 Amadora ➔ Damaia</h1></div>
         <div id="status-1510" class="status-badge">0</div>
+    </div>
+</div>
+
+<!-- Modal para as Imagens -->
+<div id="imgModal" class="modal" onclick="closeModal()">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <button class="close-btn" onclick="closeModal()">×</button>
+        <img id="modalImg" src="" alt="Horário/Linha">
     </div>
 </div>
 
@@ -52,6 +85,19 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
+    // Funções do Modal
+    function openModal(lineId) {
+        const modal = document.getElementById('imgModal');
+        const img = document.getElementById('modalImg');
+        img.src = lineId + '.jpg'; // Procura por 1013.jpg, 1015.jpg, etc.
+        modal.style.display = 'flex';
+    }
+
+    function closeModal() {
+        document.getElementById('imgModal').style.display = 'none';
+    }
+
+    // Configuração do Mapa
     const map = L.map('map', { zoomControl: false }).setView([38.7490, -9.2150], 14);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
@@ -86,18 +132,15 @@
             const res = await fetch('https://api.carrismetropolitana.pt/vehicles');
             const data = await res.json();
             const nowIds = new Set();
-            
             let c1013 = 0, c1015 = 0, c1510 = 0;
 
             data.forEach(v => {
-                // FILTROS DE SENTIDO (Direction 0 é ida, 1 é volta - ajustado conforme o pedido)
-                const is1013 = (v.line_id === '1013' && v.direction_id === 0); // Reboleira -> Queijas
-                const is1510 = (v.line_id === '1510' && v.direction_id === 0); // Amadora -> Damaia
-                const is1015 = (v.line_id === '1015');                         // Circular
+                const is1013 = (v.line_id === '1013' && v.direction_id === 0);
+                const is1510 = (v.line_id === '1510' && v.direction_id === 0);
+                const is1015 = (v.line_id === '1015');
 
                 if (is1013 || is1510 || is1015) {
                     nowIds.add(v.id);
-                    
                     if (v.line_id === '1013') c1013++;
                     else if (v.line_id === '1015') c1015++;
                     else if (v.line_id === '1510') c1510++;
@@ -111,7 +154,6 @@
                 }
             });
 
-            // Remover autocarros que mudaram de linha ou sentido
             Object.keys(markers).forEach(id => { 
                 if(!nowIds.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }
             });
