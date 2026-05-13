@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bus Tracker Pro - Pattern Filter</title>
+    <title>Bus Tracker Pro - Detalhes da Frota</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #eee; }
@@ -26,31 +26,46 @@
             margin: 0; font-size: 11px; text-transform: uppercase; font-weight: bold; 
             cursor: pointer; padding: 5px; border-radius: 4px;
         }
-        .line-info h1:active { background: #ececec; }
 
         .status-badge { background: #4CAF50; color: white; padding: 2px 6px; border-radius: 8px; font-size: 10px; }
         
+        /* Estilo do Ícone do Autocarro */
         .bus-container { display: flex; flex-direction: column; align-items: center; }
         .bus-tag { 
-            background: white; color: black; font-size: 8px; font-weight: bold; 
-            padding: 1px 4px; border: 1px solid #666; border-radius: 3px; 
-            margin-bottom: -2px; white-space: nowrap; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+            background: rgba(255, 255, 255, 0.95); 
+            color: #333; 
+            font-size: 9px; 
+            font-weight: bold; 
+            padding: 2px 5px; 
+            border: 1px solid #666; 
+            border-radius: 4px; 
+            margin-bottom: 2px; 
+            white-space: nowrap; 
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            text-align: center;
+            line-height: 1.1;
+        }
+        .bus-emoji-circle {
+            width: 26px; height: 26px; 
+            border-radius: 50%; 
+            border: 2px solid white; 
+            display: flex; justify-content: center; align-items: center; 
+            font-size: 16px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
 
-        /* Modal Pop-up */
+        /* Modal */
         .modal {
             display: none; position: fixed; z-index: 2000; left: 0; top: 0;
             width: 100%; height: 100%; background-color: rgba(0,0,0,0.9);
             justify-content: center; align-items: center;
         }
-        .modal-content {
-            position: relative; max-width: 95%; max-height: 90%;
-        }
-        .modal-content img { width: 100%; height: auto; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .modal-content { position: relative; max-width: 95%; max-height: 90%; }
+        .modal-content img { width: 100%; height: auto; border-radius: 8px; }
         .close-btn {
             position: absolute; top: -10px; right: -10px; background: white;
             color: black; border: 2px solid black; border-radius: 50%; width: 30px; height: 30px;
-            cursor: pointer; font-weight: bold; z-index: 2100;
+            cursor: pointer; font-weight: bold;
         }
     </style>
 </head>
@@ -83,19 +98,15 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // --- LÓGICA DO MODAL ---
     function openModal(lineId) {
-        const modal = document.getElementById('imgModal');
-        const img = document.getElementById('modalImg');
-        img.src = lineId + '.jpg';
-        modal.style.display = 'flex';
+        document.getElementById('modalImg').src = lineId + '.jpg';
+        document.getElementById('imgModal').style.display = 'flex';
     }
 
     function closeModal() {
         document.getElementById('imgModal').style.display = 'none';
     }
 
-    // --- CONFIGURAÇÃO DO MAPA ---
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([38.7490, -9.2150], 14);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
@@ -109,7 +120,7 @@
 
     const markers = {};
     
-    function getBusIcon(line, headsign) {
+    function getBusIcon(line, plate) {
         let color = '#333';
         if (line === '1013') color = '#27ae60';
         if (line === '1015') color = '#0055b8';
@@ -118,10 +129,13 @@
         return L.divIcon({
             className: 'b-ico',
             html: `<div class="bus-container">
-                    <div class="bus-tag">${headsign}</div>
-                    <div style="background:${color}; width:24px; height:24px; border-radius:50%; border:2px solid white; color:white; display:flex; justify-content:center; align-items:center; font-size:10px; font-weight:bold; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">${line.slice(-2)}</div>
+                    <div class="bus-tag">
+                        Line ${line}<br>
+                        ${plate || '---'}
+                    </div>
+                    <div class="bus-emoji-circle" style="background:${color};">🚌</div>
                    </div>`,
-            iconSize: [100, 45], iconAnchor: [50, 35]
+            iconSize: [120, 60], iconAnchor: [60, 50]
         });
     }
 
@@ -130,28 +144,21 @@
             const res = await fetch('https://api.carrismetropolitana.pt/vehicles');
             const data = await res.json();
             const nowIds = new Set();
-            let c1013 = 0, c1015 = 0, c1510 = 0;
+            let counters = { '1013': 0, '1015': 0, '1510': 0 };
 
             data.forEach(v => {
                 const pId = v.pattern_id || "";
                 
-                // FILTRO POR PATTERN_ID (ID_SENTIDO_VARIANTE)
-                // 1013_0_... -> Reboleira para Queijas
-                // 1510_0_... -> Amadora para Damaia
-                // 1015_...   -> Todas as variantes (Circular)
-                
-                const is1013_Queijas = (v.line_id === '1013' && pId.startsWith("1013_0_1"));
-                const is1510_Damaia  = (v.line_id === '1510' && pId.startsWith("1510_0_1"));
-                const is1015         = (v.line_id === '1015');
+                // Filtros de Sentido via Pattern_ID
+                const is1013 = (v.line_id === '1013' && pId.startsWith("1013_0_1"));
+                const is1510 = (v.line_id === '1510' && pId.startsWith("1510_0_1"));
+                const is1015 = (v.line_id === '1015');
 
-                if (is1013_Queijas || is1510_Damaia || is1015) {
+                if (is1013 || is1510 || is1015) {
                     nowIds.add(v.id);
-                    
-                    if (v.line_id === '1013') c1013++;
-                    else if (v.line_id === '1015') c1015++;
-                    else if (v.line_id === '1510') c1510++;
+                    counters[v.line_id]++;
 
-                    const ico = getBusIcon(v.line_id, v.headsign || "");
+                    const ico = getBusIcon(v.line_id, v.license_plate);
                     
                     if (markers[v.id]) {
                         markers[v.id].setLatLng([v.lat, v.lon]).setIcon(ico);
@@ -161,24 +168,22 @@
                 }
             });
 
-            // Limpeza
+            // Limpeza de autocarros que saíram da rota
             Object.keys(markers).forEach(id => { 
                 if(!nowIds.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }
             });
 
-            // Atualização da UI
-            document.getElementById('status-1013').innerText = c1013;
-            document.getElementById('status-1015').innerText = c1015;
-            document.getElementById('status-1510').innerText = c1510;
+            // Atualizar UI
+            document.getElementById('status-1013').innerText = counters['1013'];
+            document.getElementById('status-1015').innerText = counters['1015'];
+            document.getElementById('status-1510').innerText = counters['1510'];
             
         } catch (e) { console.error("Erro na atualização:", e); }
     }
 
-    // Inicialização
     update();
     setInterval(update, 10000);
 
-    // Geolocalização do utilizador
     map.locate({setView: false, watch: true});
     map.on('locationfound', (e) => {
         if (!window.userM) window.userM = L.circleMarker(e.latlng, {radius: 6, color: '#3498db', fillColor: 'white', fillOpacity: 1, weight: 3}).addTo(map);
