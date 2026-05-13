@@ -133,8 +133,8 @@
                 const headsign = v.headsign ? v.headsign.toLowerCase() : "";
                 
                 // FILTRO ROBUSTO: Linha + Verificação de Destino no texto
-                const is1013 = (v.line_id === '1013' && headsign.includes("queijas"));
-                const is1510 = (v.line_id === '1510' && headsign.includes("damaia"));
+                const is1013 = (v.line_id === '1013' && headsign.includes("Queijas"));
+                const is1510 = (v.line_id === '1510' && headsign.includes("Damaia"));
                 const is1015 = (v.line_id === '1015');
 
                 if (is1013 || is1510 || is1015) {
