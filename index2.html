@@ -69,7 +69,7 @@
     <div class="line-card c-1013"><h1 onclick="openModal('1013')">1013 Reboleira ➔ Queijas</h1><div id="status-1013" class="status-badge">0</div></div>
     <div class="line-card c-1015"><h1 onclick="openModal('1015')">1015 Circular</h1><div id="status-1015" class="status-badge">0</div></div>
     <div class="line-card c-1510"><h1 onclick="openModal('1510')">1510 Amadora ➔ Damaia</h1><div id="status-1510" class="status-badge">0</div></div>
-    <div class="line-card c-767"><h1 onclick="openModal('767')">767 Fornecedor Ext (Dir 0)</h1><div id="status-767" class="status-badge">0</div></div>
+    <div class="line-card c-767"><h1 onclick="openModal('767')">767 Lisboa ➔ Reboleira</h1><div id="status-767" class="status-badge">0</div></div>
 </div>
 
 <div id="imgModal" class="modal" onclick="closeModal()">
@@ -147,7 +147,7 @@
                 const subVehicle = vehicleObj.vehicle || {};
 
                 // Filtro: ID contém 767 E direção é 0
-                if (vId.includes('767') && trip.directionId === 1) {
+                if (vId.includes('767') && trip.directionId === 0) {
                     renderBus(
                         vId, 
                         "767", 
