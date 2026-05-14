@@ -179,13 +179,12 @@
                 }
             });
 
-            // --- 2. FORNECEDOR EXTERNO (767) ---
+// --- 2. FORNECEDOR EXTERNO (767) ---
             resJDCP.forEach(v => {
                 const fullId = v.id || "";
                 const lineId = fullId.split('_').pop(); 
 
                 if (lineId === '767') {
-                    // Extração correta do timestamp e posição conforme o teu JSON
                     const busTime = parseInt(v.vehicle.timestamp);
                     const isRecent = (nowSec - busTime) < MAX_AGE;
                     // FILTRO DE DIREÇÃO NO 767:
@@ -200,7 +199,6 @@
                 }
             });
 
-            // Limpeza e Atualização da UI
             Object.keys(markers).forEach(id => { 
                 if(!nowIds.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }
             });
@@ -218,7 +216,6 @@
         nowIds.add(id);
         counts[lineId]++;
         plateStrings[lineId].push(plate);
-
         const ico = getBusIcon(lineId, plate);
         if (markers[id]) {
             markers[id].setLatLng([lat, lon]).setIcon(ico);
