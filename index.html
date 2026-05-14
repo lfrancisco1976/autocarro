@@ -154,7 +154,7 @@
 
             data.forEach(v => {
                 const lineId = v.line_id;
-                const routeId = v.route_id || "";
+                const patternid = v.pattern_id || "";
                 const stop = v.stop_id;
                 const busTime = v.timestamp;
 
@@ -169,9 +169,9 @@
                 if (isRecent && isStopAllowed) {
                     let shouldShow = false;
 
-                    if (lineId === '1013' && routeId.startsWith("1013_1")) {
+                    if (lineId === '1013' && patternid.startsWith("1013_0_1")) {
                         shouldShow = true; // Sentido Queijas
-                    } else if (lineId === '1510' && routeId.startsWith("1510_1")) {
+                    } else if (lineId === '1510' && patternid.startsWith("1510_0_1")) {
                         shouldShow = true; // Sentido Damaia
                     } else if (lineId === '1015') {
                         shouldShow = true; // Circular
