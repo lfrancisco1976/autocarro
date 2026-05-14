@@ -91,7 +91,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // --- DADOS DE FILTRAGEM (image_1c3717.png) ---
+    // --- DADOS DE FILTRAGEM ---
     const ALLOWED_STOPS = {
         '1015': ['030844', '030458', '030485', '030487', '030489'],
         '1013': ['030583', '030086', '030084', '030113', '030448', '030449'],
@@ -148,17 +148,25 @@
             const nowIds = new Set();
             let counts = { '1013': 0, '1015': 0, '1510': 0 };
 
+            // Tempo atual em segundos para comparar com o timestamp da API
+            const nowInSeconds = Math.floor(Date.now() / 1000);
+            const MAX_AGE_SECONDS = 4 * 60 * 60; // 4 Horas
+
             data.forEach(v => {
                 const lineId = v.line_id;
                 const routeId = v.route_id || "";
                 const stop = v.stop_id;
+                const busTime = v.timestamp;
 
-                // --- LOGICA DE FILTRO DUPLO (Pattern + Paragens) ---
+                // --- LÓGICA DE FILTRAGEM (Tempo + Paragem + Sentido) ---
                 
-                // 1. Verificar se a paragem está na lista permitida para esta linha
+                // 1. Verificar se o dado é recente (menos de 4h)
+                const isRecent = (nowInSeconds - busTime) < MAX_AGE_SECONDS;
+
+                // 2. Verificar se a paragem está na lista permitida
                 const isStopAllowed = ALLOWED_STOPS[lineId] && ALLOWED_STOPS[lineId].includes(stop);
                 
-                if (isStopAllowed) {
+                if (isRecent && isStopAllowed) {
                     let shouldShow = false;
 
                     if (lineId === '1013' && routeId.startsWith("1013_1")) {
@@ -166,7 +174,7 @@
                     } else if (lineId === '1510' && routeId.startsWith("1510_1")) {
                         shouldShow = true; // Sentido Damaia
                     } else if (lineId === '1015') {
-                        shouldShow = true; // Circular (todas)
+                        shouldShow = true; // Circular
                     }
 
                     if (shouldShow) {
@@ -183,12 +191,15 @@
                 }
             });
 
-            // Remover veículos que saíram dos critérios
+            // Remover veículos que deixaram de cumprir os critérios (ou ficaram offline)
             Object.keys(markers).forEach(id => { 
-                if(!nowIds.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }
+                if(!nowIds.has(id)){ 
+                    map.removeLayer(markers[id]); 
+                    delete markers[id]; 
+                }
             });
 
-            // Atualizar contadores na UI
+            // Atualizar UI
             document.getElementById('status-1013').innerText = counts['1013'];
             document.getElementById('status-1015').innerText = counts['1015'];
             document.getElementById('status-1510').innerText = counts['1510'];
@@ -196,10 +207,11 @@
         } catch (e) { console.error("Erro na atualização:", e); }
     }
 
+    // Ciclo de atualização
     update();
     setInterval(update, 10000);
 
-    // Geolocalização
+    // Geolocalização do Utilizador
     map.locate({setView: false, watch: true});
     map.on('locationfound', (e) => {
         if (!window.userM) window.userM = L.circleMarker(e.latlng, {radius: 6, color: '#3498db', fillColor: 'white', fillOpacity: 1, weight: 3}).addTo(map);
