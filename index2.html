@@ -165,25 +165,22 @@
             const MAX_AGE = 12 * 60 * 60; // Aumentado para 12h para garantir visibilidade
 
             // --- 1. CARRIS METROPOLITANA ---
-            resCM.forEach(v => {
-                const lineId = v.line_id;
-                if (!['1013', '1510'].includes(lineId)) return;
+ resCM.forEach(v => {
+    const lineId = v.line_id;
+    if (!['1013', '1015', '1510'].includes(lineId)) return;
 
-                const isRecent = (nowSec - v.timestamp) < MAX_AGE;
-                const isStopAllowed = ALLOWED_STOPS[lineId].includes(v.stop_id);
-                const isCorrectPattern = v.pattern_id === `${lineId}_0_1`;
-               
-                if (!['1015'].includes(lineId)) return;
+    const isRecent = (nowSec - v.timestamp) < MAX_AGE;
+    const isStopAllowed = ALLOWED_STOPS[lineId].includes(v.stop_id);
+    
+    // Validação dinâmica do padrão
+    const expectedPattern = lineId === '1015' ? `${lineId}_0_2` : `${lineId}_0_1`;
+    const isCorrectPattern = v.pattern_id === expectedPattern;
 
-                const isRecent = (nowSec - v.timestamp) < MAX_AGE;
-                const isStopAllowed = ALLOWED_STOPS[lineId].includes(v.stop_id);
-                const isCorrectPattern = v.pattern_id === `${lineId}_0_2`;
-                
-                if (isRecent && isStopAllowed && isCorrectPattern) {
-                    const plate = v.license_plate || "N/A";
-                    renderBus(v.id, lineId, plate, v.lat, v.lon, nowIds, counts, plateStrings);
-                }
-            });
+    if (isRecent && isStopAllowed && isCorrectPattern) {
+        const plate = v.license_plate || "N/A";
+        renderBus(v.id, lineId, plate, v.lat, v.lon, nowIds, counts, plateStrings);
+    }
+});
 
             // --- 2. FORNECEDOR EXTERNO (767) ---
             resJDCP.forEach(v => {
