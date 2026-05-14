@@ -173,7 +173,7 @@
     const isStopAllowed = ALLOWED_STOPS[lineId].includes(v.stop_id);
     
     // Validação dinâmica do padrão
-    const expectedPattern = lineId === '1015' ? `${lineId}_0_2` : `${lineId}_0_1`;
+    const expectedPattern = lineId === '1015' ? `${lineId}_0_3` : `${lineId}_0_1`;
     const isCorrectPattern = v.pattern_id === expectedPattern;
 
     if (isRecent && isStopAllowed && isCorrectPattern) {
