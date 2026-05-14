@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bus Tracker Pro - Filtro Direção</title>
+    <title>Bus Tracker Pro - Filtro Direção 0</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #f4f4f4; }
@@ -42,46 +42,26 @@
             display: flex; justify-content: center; align-items: center; 
             font-size: 18px; box-shadow: 0 3px 6px rgba(0,0,0,0.4);
         }
-
-        .modal {
-            display: none; position: fixed; z-index: 2000; left: 0; top: 0;
-            width: 100%; height: 100%; background: rgba(0,0,0,0.85);
-            justify-content: center; align-items: center; padding: 20px;
-        }
-        .modal-content { position: relative; max-width: 100%; max-height: 100%; }
-        .modal-content img { width: 100%; height: auto; border-radius: 12px; border: 3px solid white; }
-        .close-btn {
-            position: absolute; top: -15px; right: -15px; background: #e30613;
-            color: white; border: 2px solid white; border-radius: 50%; width: 35px; height: 35px;
-            cursor: pointer; font-weight: bold; font-size: 20px;
-        }
     </style>
 </head>
 <body>
 
 <div class="ui-overlay">
     <div class="line-card c-1013">
-        <div class="card-header"><div class="line-info"><h1 onclick="openModal('1013')">1013 Reboleira ➔ Queijas</h1></div><div id="status-1013" class="status-badge">0</div></div>
+        <div class="card-header"><div class="line-info"><h1>1013 (Sentido 0)</h1></div><div id="status-1013" class="status-badge">0</div></div>
         <div id="plates-1013" class="plate-list">-</div>
     </div>
     <div class="line-card c-1015">
-        <div class="card-header"><div class="line-info"><h1 onclick="openModal('1015')">1015 Circular</h1></div><div id="status-1015" class="status-badge">0</div></div>
+        <div class="card-header"><div class="line-info"><h1>1015 (Sentido 0)</h1></div><div id="status-1015" class="status-badge">0</div></div>
         <div id="plates-1015" class="plate-list">-</div>
     </div>
     <div class="line-card c-1510">
-        <div class="card-header"><div class="line-info"><h1 onclick="openModal('1510')">1510 Amadora ➔ Damaia</h1></div><div id="status-1510" class="status-badge">0</div></div>
+        <div class="card-header"><div class="line-info"><h1>1510 (Sentido 0)</h1></div><div id="status-1510" class="status-badge">0</div></div>
         <div id="plates-1510" class="plate-list">-</div>
     </div>
     <div class="line-card c-767">
-        <div class="card-header"><div class="line-info"><h1>767 Fornecedor Externo</h1></div><div id="status-767" class="status-badge">0</div></div>
+        <div class="card-header"><div class="line-info"><h1>767 (Sentido 0)</h1></div><div id="status-767" class="status-badge">0</div></div>
         <div id="plates-767" class="plate-list">-</div>
-    </div>
-</div>
-
-<div id="imgModal" class="modal" onclick="closeModal()">
-    <div class="modal-content" onclick="event.stopPropagation()">
-        <button class="close-btn" onclick="closeModal()">✕</button>
-        <img id="modalImg" src="" alt="Percurso">
     </div>
 </div>
 
@@ -97,23 +77,8 @@
         '767': [] 
     };
 
-    function openModal(lineId) {
-        document.getElementById('modalImg').src = lineId + '.jpg';
-        document.getElementById('imgModal').style.display = 'flex';
-    }
-    function closeModal() { document.getElementById('imgModal').style.display = 'none'; }
-
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([38.7490, -9.2150], 14);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
-
-    const pts = [
-        { n: "🏠 Casa", c: [38.746972, -9.228528], cl: "#2c3e50" },
-        { n: "📍 Reboleira", c: [38.750335, -9.221748], cl: "#d35400" },
-        { n: "🎒 Escola", c: [38.748258, -9.192572], cl:"#2c3e50" }
-    ];
-    pts.forEach(p => {
-        L.marker(p.c, { icon: L.divIcon({ html: `<div style="background:${p.cl}; color:white; padding:2px 6px; border-radius:3px; font-size:10px; border:1px solid white; white-space:nowrap;">${p.n}</div>`, iconSize: [60, 20] }) }).addTo(map);
-    });
 
     const markers = {};
     
@@ -146,20 +111,19 @@
             let counts = { '1013': 0, '1015': 0, '1510': 0, '767': 0 };
             let plateStrings = { '1013': [], '1015': [], '1510': [], '767': [] };
             const nowSec = Math.floor(Date.now() / 1000);
-            const MAX_AGE = 12 * 60 * 60; 
 
             // --- 1. CARRIS METROPOLITANA ---
             resCM.forEach(v => {
                 const lineId = v.line_id;
                 if (!['1013', '1015', '1510'].includes(lineId)) return;
 
-                const isRecent = (nowSec - v.timestamp) < MAX_AGE;
+                const isRecent = (nowSec - v.timestamp) < 43200; // 12h
                 const isStopAllowed = ALLOWED_STOPS[lineId].includes(v.stop_id);
-                const isCorrectPattern = v.pattern_id === `${lineId}_0_1`;
-                // FILTRO DE DIREÇÃO:
-                const isCorrectDirection = v.direction_id === 1;
+                
+                // Filtro Direção 0 (Carris usa direction_id)
+                const isCorrectDirection = v.direction_id === 0;
 
-                if (isRecent && isStopAllowed && isCorrectPattern && isCorrectDirection) {
+                if (isRecent && isStopAllowed && isCorrectDirection) {
                     renderBus(v.id, lineId, v.license_plate, v.lat, v.lon, nowIds, counts, plateStrings);
                 }
             });
@@ -171,9 +135,10 @@
 
                 if (lineId === '767') {
                     const busTime = parseInt(v.vehicle.timestamp);
-                    const isRecent = (nowSec - busTime) < MAX_AGE;
-                    // FILTRO DE DIREÇÃO NO 767:
-                    const isCorrectDirection = v.vehicle.trip.directionId === 1;
+                    const isRecent = (nowSec - busTime) < 43200;
+                    
+                    // Filtro Direção 0 (767 usa v.vehicle.trip.directionId)
+                    const isCorrectDirection = v.vehicle?.trip?.directionId === 0;
                     
                     if (isRecent && isCorrectDirection) {
                         const plate = v.vehicle.vehicle.licensePlate || "N/A";
@@ -190,11 +155,10 @@
 
             Object.keys(counts).forEach(key => {
                 document.getElementById(`status-${key}`).innerText = counts[key];
-                const plates = plateStrings[key].length > 0 ? plateStrings[key].join(" | ") : "-";
-                document.getElementById(`plates-${key}`).innerText = plates;
+                document.getElementById(`plates-${key}`).innerText = plateStrings[key].length > 0 ? plateStrings[key].join(" | ") : "-";
             });
             
-        } catch (e) { console.error("Erro no update:", e); }
+        } catch (e) { console.error(e); }
     }
 
     function renderBus(id, lineId, plate, lat, lon, nowIds, counts, plateStrings) {
@@ -202,21 +166,12 @@
         counts[lineId]++;
         plateStrings[lineId].push(plate);
         const ico = getBusIcon(lineId, plate);
-        if (markers[id]) {
-            markers[id].setLatLng([lat, lon]).setIcon(ico);
-        } else {
-            markers[id] = L.marker([lat, lon], { icon: ico, zIndexOffset: 1000 }).addTo(map);
-        }
+        if (markers[id]) markers[id].setLatLng([lat, lon]).setIcon(ico);
+        else markers[id] = L.marker([lat, lon], { icon: ico, zIndexOffset: 1000 }).addTo(map);
     }
 
     update();
     setInterval(update, 10000);
-
-    map.locate({setView: false, watch: true});
-    map.on('locationfound', (e) => {
-        if (!window.userM) window.userM = L.circleMarker(e.latlng, {radius: 6, color: '#3498db', fillColor: 'white', fillOpacity: 1, weight: 3}).addTo(map);
-        else window.userM.setLatLng(e.latlng);
-    });
 </script>
 </body>
 </html>
