@@ -3,73 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bus Tracker Mini - Multi-Source</title>
+    <title>Bus Tracker Pro - Filtro Multivendor</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #f0f0f0; }
+        body { margin: 0; padding: 0; font-family: -apple-system, sans-serif; background: #f4f4f4; }
         #map { height: 100vh; width: 100vw; }
         
-        /* Overlay de Cartões mais pequenos */
         .ui-overlay {
-            position: absolute; top: 8px; left: 8px; right: 8px;
-            z-index: 1000; display: flex; flex-direction: column; gap: 4px; pointer-events: none;
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            z-index: 1000; display: flex; flex-direction: column; gap: 6px; pointer-events: none;
         }
         .line-card {
-            background: white; padding: 4px 10px; border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15); display: flex; 
+            background: white; padding: 8px 12px; border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; 
             justify-content: space-between; align-items: center; pointer-events: auto;
-            border-left: 5px solid #ccc; height: 32px;
+            border-left: 6px solid #ccc;
         }
         .c-1013 { border-left-color: #27ae60; }
         .c-1015 { border-left-color: #0055b8; }
         .c-1510 { border-left-color: #e30613; }
-        .c-767  { border-left-color: #f1c40f; }
+        .c-112  { border-left-color: #9b59b6; } /* Nova Cor: Roxo */
         
         .line-info h1 { 
-            margin: 0; font-size: 10px; text-transform: uppercase; font-weight: 800; 
-            cursor: pointer; color: #333; flex-grow: 1;
+            margin: 0; font-size: 12px; text-transform: uppercase; font-weight: 800; 
+            cursor: pointer; color: #333;
         }
         .status-badge { 
-            background: #444; color: white; padding: 2px 6px; 
-            border-radius: 10px; font-size: 9px; font-weight: bold; margin-left: 8px;
+            background: #27ae60; color: white; padding: 3px 8px; 
+            border-radius: 12px; font-size: 11px; font-weight: bold;
         }
 
-        /* Estilo dos Marcadores */
         .bus-container { display: flex; flex-direction: column; align-items: center; }
         .bus-tag { 
-            background: white; color: #000; font-size: 9px; font-weight: 900; 
-            padding: 1px 4px; border: 2px solid #333; border-radius: 3px; 
+            background: white; color: #000; font-size: 10px; font-weight: 900; 
+            padding: 2px 6px; border: 2px solid #333; border-radius: 4px; 
             margin-bottom: 2px; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.3);
             text-align: center;
         }
         .bus-emoji-circle {
-            width: 26px; height: 26px; border-radius: 50%; border: 2px solid white; 
+            width: 30px; height: 30px; border-radius: 50%; border: 2px solid white; 
             display: flex; justify-content: center; align-items: center; 
-            font-size: 16px; box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+            font-size: 18px; box-shadow: 0 3px 6px rgba(0,0,0,0.4);
         }
 
-        /* Modal */
         .modal {
             display: none; position: fixed; z-index: 2000; left: 0; top: 0;
-            width: 100%; height: 100%; background: rgba(0,0,0,0.9);
-            justify-content: center; align-items: center;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.85);
+            justify-content: center; align-items: center; padding: 20px;
         }
-        .modal-content { position: relative; max-width: 95%; max-height: 90%; }
-        .modal-content img { width: 100%; height: auto; border-radius: 8px; border: 2px solid white; }
+        .modal-content { position: relative; max-width: 100%; max-height: 100%; }
+        .modal-content img { width: 100%; height: auto; border-radius: 12px; border: 3px solid white; }
         .close-btn {
-            position: absolute; top: -12px; right: -12px; background: #e30613;
-            color: white; border: 2px solid white; border-radius: 50%; width: 30px; height: 30px;
-            cursor: pointer; font-weight: bold;
+            position: absolute; top: -15px; right: -15px; background: #e30613;
+            color: white; border: 2px solid white; border-radius: 50%; width: 35px; height: 35px;
+            cursor: pointer; font-weight: bold; font-size: 20px;
         }
     </style>
 </head>
 <body>
 
 <div class="ui-overlay">
-    <div class="line-card c-1013"><h1 onclick="openModal('1013')">1013 Reboleira ➔ Queijas</h1><div id="status-1013" class="status-badge">0</div></div>
-    <div class="line-card c-1015"><h1 onclick="openModal('1015')">1015 Circular</h1><div id="status-1015" class="status-badge">0</div></div>
-    <div class="line-card c-1510"><h1 onclick="openModal('1510')">1510 Amadora ➔ Damaia</h1><div id="status-1510" class="status-badge">0</div></div>
-    <div class="line-card c-767"><h1 onclick="openModal('767')">767 Lisboa ➔ Reboleira</h1><div id="status-767" class="status-badge">0</div></div>
+    <div class="line-card c-1013">
+        <div class="line-info"><h1 onclick="openModal('1013')">1013 Reboleira ➔ Queijas</h1></div>
+        <div id="status-1013" class="status-badge">0</div>
+    </div>
+    <div class="line-card c-1015">
+        <div class="line-info"><h1 onclick="openModal('1015')">1015 Circular</h1></div>
+        <div id="status-1015" class="status-badge">0</div>
+    </div>
+    <div class="line-card c-1510">
+        <div class="line-info"><h1 onclick="openModal('1510')">1510 Amadora ➔ Damaia</h1></div>
+        <div id="status-1510" class="status-badge">0</div>
+    </div>
+    <!-- Novo Card para o Fornecedor Externo -->
+    <div class="line-card c-112">
+        <div class="line-info"><h1 onclick="openModal('112')">112 Expresso Externo</h1></div>
+        <div id="status-112" class="status-badge">0</div>
+    </div>
 </div>
 
 <div id="imgModal" class="modal" onclick="closeModal()">
@@ -84,100 +94,127 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-    // Filtros de paragem (Carris Metropolitana - conforme image_1c3717.png)
     const ALLOWED_STOPS = {
         '1015': ['030844', '030458', '030485', '030487', '030489'],
         '1013': ['030583', '030086', '030084', '030113', '030448', '030449'],
-        '1510': ['030847', '172055', '172059', '172061', '172063', '170927', '172065', '030313', '030653', '030348', '030346', '030475', '030477', '030479', '030481', '030464', '030483', '030462', '030459', '030111', '030086', '030655', '030657', '030492', '030454', '030659', '030450', '030447']
+        '1510': ['030847', '172055', '172059', '172061', '172063', '170927', '172065', '030313', '030653', '030348', '030346', '030475', '030477', '030479', '030481', '030464', '030483', '030462', '030459', '030111', '030086', '030655', '030657', '030492', '030454', '030659', '030450', '030447'],
+        '112': [] // Vazio se quiseres mostrar todos sem filtro de paragem
     };
 
-    // Modal
     function openModal(lineId) {
         document.getElementById('modalImg').src = lineId + '.jpg';
         document.getElementById('imgModal').style.display = 'flex';
     }
     function closeModal() { document.getElementById('imgModal').style.display = 'none'; }
 
-    // Mapa
     const map = L.map('map', { zoomControl: false, attributionControl: false }).setView([38.7490, -9.2150], 14);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+    const pts = [
+        { n: "🏠 Casa", c: [38.746972, -9.228528], cl: "#2c3e50" },
+        { n: "📍 Reboleira", c: [38.750335, -9.221748], cl: "#d35400" }
+    ];
+    pts.forEach(p => {
+        L.marker(p.c, { icon: L.divIcon({ html: `<div style="background:${p.cl}; color:white; padding:2px 6px; border-radius:3px; font-size:10px; border:1px solid white; white-space:nowrap;">${p.n}</div>`, iconSize: [60, 20] }) }).addTo(map);
+    });
 
     const markers = {};
     
     function getBusIcon(line, plate) {
-        const colors = { '1013': '#27ae60', '1015': '#0055b8', '1510': '#e30613', '767': '#f1c40f' };
+        let color = '#333';
+        if (line === '1013') color = '#27ae60';
+        else if (line === '1015') color = '#0055b8';
+        else if (line === '1510') color = '#e30613';
+        else if (line.startsWith('112')) color = '#9b59b6';
+
         return L.divIcon({
             className: 'b-ico',
             html: `<div class="bus-container">
                     <div class="bus-tag">${line}<br>${plate || '---'}</div>
-                    <div class="bus-emoji-circle" style="background:${colors[line] || '#333'};">🚌</div>
+                    <div class="bus-emoji-circle" style="background:${color};">🚌</div>
                    </div>`,
-            iconSize: [100, 60], iconAnchor: [50, 50]
+            iconSize: [120, 70], iconAnchor: [60, 60]
         });
     }
 
     async function update() {
         try {
+            // Fetch de ambos os fornecedores simultaneamente
             const [resCM, resJDCP] = await Promise.all([
                 fetch('https://api.carrismetropolitana.pt/vehicles').then(r => r.json()),
-                fetch('https://rt.jdcp.workers.dev').then(r => r.json())
+                fetch('https://rt.jdcp.workers.dev/').then(r => r.json())
             ]);
 
             const nowIds = new Set();
-            let counts = { '1013': 0, '1015': 0, '1510': 0, '767': 0 };
+            let counts = { '1013': 0, '1015': 0, '1510': 0, '112': 0 };
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            const MAX_AGE = 4 * 60 * 60; // 4 horas
 
-            // 1. Processar Carris Metropolitana
+            // --- PROCESSAR CARRIS METROPOLITANA ---
             resCM.forEach(v => {
                 const lineId = v.line_id;
-                const pattern = v.pattern_id || "";
-                if (ALLOWED_STOPS[lineId] && ALLOWED_STOPS[lineId].includes(v.stop_id)) {
-                    let show = (lineId === '1013' && pattern.startsWith("1013_0")) || 
-                               (lineId === '1510' && pattern.startsWith("1510_0")) || 
+                if (!['1013', '1015', '1510'].includes(lineId)) return;
+
+                const isRecent = (nowSeconds - v.timestamp) < MAX_AGE;
+                const isStopAllowed = ALLOWED_STOPS[lineId].includes(v.stop_id);
+
+                if (isRecent && isStopAllowed) {
+                    let show = (lineId === '1013' && v.route_id?.startsWith("1013_1")) ||
+                               (lineId === '1510' && v.route_id?.startsWith("1510_1")) ||
                                (lineId === '1015');
-                    if (show) renderBus(v.id, lineId, v.license_plate, v.lat, v.lon, nowIds, counts);
+
+                    if (show) {
+                        renderBus(v.id, lineId, v.license_plate, v.lat, v.lon, nowIds, counts);
+                    }
                 }
             });
 
-            // 2. Processar JDCP (Lógica aninhada conforme confirmado)
+            // --- PROCESSAR NOVO FORNECEDOR (JDCP) ---
             resJDCP.forEach(v => {
-                const Id = v.id || "";
-                const vehicle = v.vehicle || {};
-                const directionId = vehicleObj.trip || {};
-                const position = vehicleObj.position || {};
-                const subVehicle = vehicleObj.vehicle || {};
+                // Mapeamento da estrutura específica da nova API
+                const rawRoute = v.vehicle.trip.routeId; // Ex: "112_0"
+                const lineId = rawRoute.split('_')[0];   // Ex: "112"
+                
+                if (lineId === '767') {
+                    const busTime = parseInt(v.vehicle.timestamp);
+                    const isRecent = (nowSeconds - busTime) < MAX_AGE;
 
-                // Filtro: ID contém 767 E direção é 0
-                if (vId.includes('767') && trip.directionId === 0) {
-                    renderBus(
-                        vId, 
-                        "767", 
-                        subVehicle.licensePlate, 
-                        pos.latitude, 
-                        pos.longitude, 
-                        nowIds, 
-                        counts
-                    );
+                    // Para este fornecedor, se não houver stops na lista, mostramos todos os recentes
+                    const isStopAllowed = ALLOWED_STOPS['112'].length === 0 || ALLOWED_STOPS['112'].includes(v.vehicle.stopId);
+
+                    if (isRecent && isStopAllowed) {
+                        renderBus(
+                            v.id, 
+                            lineId, 
+                            v.vehicle.vehicle.licensePlate, 
+                            v.vehicle.position.latitude, 
+                            v.vehicle.position.longitude, 
+                            nowIds, 
+                            counts
+                        );
+                    }
                 }
             });
 
-            // Limpeza
+            // Limpeza de veículos antigos
             Object.keys(markers).forEach(id => { 
                 if(!nowIds.has(id)){ map.removeLayer(markers[id]); delete markers[id]; }
             });
 
-            // Atualização da UI
-            Object.keys(counts).forEach(id => {
-                const el = document.getElementById('status-' + id);
-                if(el) el.innerText = counts[id];
-            });
+            // Atualizar UI
+            for (let key in counts) {
+                const el = document.getElementById(`status-${key}`);
+                if (el) el.innerText = counts[key];
+            }
             
         } catch (e) { console.error("Erro na atualização:", e); }
     }
 
-    function renderBus(id, line, plate, lat, lon, nowIds, counts) {
+    // Função auxiliar para evitar repetição de código de renderização
+    function renderBus(id, lineId, plate, lat, lon, nowIds, counts) {
         nowIds.add(id);
-        counts[line]++;
-        const ico = getBusIcon(line, plate);
+        counts[lineId]++;
+        const ico = getBusIcon(lineId, plate);
         if (markers[id]) {
             markers[id].setLatLng([lat, lon]).setIcon(ico);
         } else {
@@ -185,14 +222,12 @@
         }
     }
 
-    // Loop de atualização
     update();
     setInterval(update, 10000);
 
-    // Geolocalização do Utilizador
     map.locate({setView: false, watch: true});
     map.on('locationfound', (e) => {
-        if (!window.userM) window.userM = L.circleMarker(e.latlng, {radius: 5, color: '#3498db', fillColor: 'white', fillOpacity: 1, weight: 3}).addTo(map);
+        if (!window.userM) window.userM = L.circleMarker(e.latlng, {radius: 6, color: '#3498db', fillColor: 'white', fillOpacity: 1, weight: 3}).addTo(map);
         else window.userM.setLatLng(e.latlng);
     });
 </script>
