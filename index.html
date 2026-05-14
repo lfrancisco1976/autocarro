@@ -150,7 +150,7 @@
 
             data.forEach(v => {
                 const lineId = v.line_id;
-                const pattern = v.pattern_id || "";
+                const routeId = v.route_id || "";
                 const stop = v.stop_id;
 
                 // --- LOGICA DE FILTRO DUPLO (Pattern + Paragens) ---
@@ -161,9 +161,9 @@
                 if (isStopAllowed) {
                     let shouldShow = false;
 
-                    if (lineId === '1013' && pattern.startsWith("1013_0_1")) {
+                    if (lineId === '1013' && routeId.startsWith("1013_1")) {
                         shouldShow = true; // Sentido Queijas
-                    } else if (lineId === '1510' && pattern.startsWith("1510_0_1")) {
+                    } else if (lineId === '1510' && routeId.startsWith("1510_1")) {
                         shouldShow = true; // Sentido Damaia
                     } else if (lineId === '1015') {
                         shouldShow = true; // Circular (todas)
