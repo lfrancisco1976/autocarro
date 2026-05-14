@@ -187,12 +187,13 @@
                     // Extração correta do timestamp e posição conforme o teu JSON
                     const busTime = parseInt(v.vehicle.timestamp);
                     const isRecent = (nowSec - busTime) < MAX_AGE;
+            // FILTRO DE DIREÇÃO NO 767:
+                    const isCorrectDirection = v.vehicle.trip.directionId === 0;
                     
-                    if (isRecent) {
+                    if (isRecent && isCorrectDirection) {
                         const plate = v.vehicle.vehicle.licensePlate || "N/A";
                         const lat = v.vehicle.position.latitude;
                         const lon = v.vehicle.position.longitude;
-                        
                         renderBus(fullId, lineId, plate, lat, lon, nowIds, counts, plateStrings);
                     }
                 }
