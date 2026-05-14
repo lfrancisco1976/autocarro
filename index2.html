@@ -109,7 +109,7 @@
         '1510': ['030847', '172055', '172059', '172061', '172063', '170927', '172065', '030313', '030653', '030348', '030346', '030475', '030477', '030479', '030481', '030464', '030483', '030462', '030459', '030111', '030086', '030655', '030657', '030492', '030454', '030659', '030450', '030447'],
         '767': [] 
     };
-
+const busPaths = {};
     function openModal(lineId) {
         document.getElementById('modalImg').src = lineId + '.jpg';
         document.getElementById('imgModal').style.display = 'flex';
@@ -180,6 +180,14 @@
         const plate = v.license_plate || "N/A";
         renderBus(v.id, lineId, plate, v.lat, v.lon, nowIds, counts, plateStrings);
     }
+     const coords = [v.lat, v.lon];
+        if (!busPaths[v.id]) {
+            // Cria a linha se for a primeira vez que vemos este autocarro
+            busPaths[v.id] = L.polyline([coords], { color: 'blue', weight: 2, opacity: 0.5 }).addTo(map);
+        } else {
+            // Adiciona o ponto à linha já existente
+            busPaths[v.id].addLatLng(coords);
+        }
 });
 
             // --- 2. FORNECEDOR EXTERNO (767) ---
